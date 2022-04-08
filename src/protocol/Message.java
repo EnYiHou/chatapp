@@ -1,5 +1,5 @@
 package protocol;
 
-public abstract class Message implements Serializable {
+public abstract class Message implements ISerializer {
     
 }
