@@ -3,14 +3,17 @@ package protocol;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
-public class IntegerSerializer implements ISerializer<Integer> {
-    private static final byte[] header = String.format("INT%d", Integer.SIZE).getBytes();
+public class IntegerSerializer extends Serializer<Integer> {
+    private static final byte[] localHeader =
+        String.format("SI%02d", Integer.SIZE).getBytes();
+    
+    public IntegerSerializer() throws ProtocolFormatException {
+        super(localHeader);
+    }
     
     @Override
-    public byte[] serialize(Integer o) {
+    protected byte[] onSerialize(Integer o) {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        
-        bytes.writeBytes(header);
         
         for (int i = 0; i < Integer.BYTES; ++i)
             bytes.write((o >> (8 * i)) & 0xff);
@@ -19,17 +22,17 @@ public class IntegerSerializer implements ISerializer<Integer> {
     }
 
     @Override
-    public Integer deserialize(List<Byte> buf) throws ProtocolFormatException{
-        int i;
+    protected Deserialized<Integer> onDeserialize(List<Byte> buf)
+        throws ProtocolFormatException{
         Integer integer = 0;
         
-        for (i = 0; i < header.length; ++i)
-            if (header[i] != buf.get(i))
-                throw new ProtocolFormatException(Integer.class, header);
+        for (int i = 0; i < Integer.BYTES; ++i)
+            integer |= buf.get(i) << (8 * i);
         
-        for (int j = i; j < Integer.BYTES; ++j)
-            integer |= buf.get(i + j) << (8 * j);
-        
-        return integer;
+        return new Deserialized<>(integer, Integer.BYTES);
+    }
+    
+    public static int size() {
+        return localHeader.length + Integer.BYTES;
     }
 }

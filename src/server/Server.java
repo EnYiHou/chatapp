@@ -3,8 +3,6 @@ package server;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.Socket;
-import java.net.ServerSocket;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -12,19 +10,19 @@ import java.util.LinkedHashMap;
 import java.util.Scanner;
 import java.util.regex.MatchResult;
 import java.util.stream.Stream;
+import protocol.Cookie;
 
 
 public class Server {
-    private ServerSocket sock;
-    private LinkedHashMap<Socket, String> clients;
+    private LinkedHashMap<Cookie, String> sessions;
     private HashMap<String, Hash> userSecrets;
-    public static final int PORT = 0xCAFE;
-    private volatile boolean active;
+    public static final int PORT = 5200;
+    private ServerListenerThread listener;
 
     public Server() throws IOException {
-        this.sock = new ServerSocket(PORT);
-        this.clients = new LinkedHashMap<>();
+        this.sessions = new LinkedHashMap<>();
         this.userSecrets = new HashMap<>();
+        this.listener = null;
     }
     
     public Server(File db) throws SecretFormatException, SecretDuplicateException, HashInvalidLengthException, IOException, NoSuchAlgorithmException {
@@ -72,27 +70,23 @@ public class Server {
         file.close();
     }
     
-    public void listen() {
-        active = true;
+    public void listen() throws IOException {
+        if (this.listener != null && this.listener.isAlive())
+            throw new IOException("Server already listening");
         
-        while (active) {
-            
-        }
+        this.listener = new ServerListenerThread(PORT, this);
+        this.listener.start();
     }
     
-    public void closeConnection(Socket conn) throws IOException {
-        if (this.clients.containsKey(conn)) {
-            this.clients.remove(conn);
-            conn.close();
-        }
+    public boolean isListening() {
+        return this.listener.isAlive();
     }
     
-    public void close() throws IOException {
-        active = false;
+    public void close() throws IOException, InterruptedException {
+        if (this.listener == null || !this.listener.isAlive())
+            throw new IOException("Server not listening");
         
-        for (Socket conn : this.clients.keySet())
-            this.closeConnection(conn);
-        
-        this.sock.close();
+        this.listener.interrupt();
+        this.listener.join();
     }
 }

@@ -50,6 +50,11 @@ public class Hash {
         return Arrays.equals(this.hash, other.hash);
     }
 
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(this.hash);
+    }
+
     public String hex() {
         StringBuilder builder = new StringBuilder();
         final char[] hexChars = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};

@@ -1,30 +1,24 @@
 package protocol;
 
-import java.io.ByteArrayOutputStream;
 import java.util.List;
 
-
-public class CookieSerializer implements ISerializer<Cookie> {
-    private static byte header[] = {'C', 'O', 'O', 'K'};
+public class CookieSerializer extends Serializer<Cookie> {
+    private final BytesSerializer backend;
+    
+    public CookieSerializer() throws ProtocolFormatException {
+        super(new byte[]{'C', 'O', 'O', 'K'});
+        this.backend = new BytesSerializer();
+    }
     
     @Override
-    public byte[] serialize(Cookie o) {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        
-        bytes.writeBytes(header);
-        bytes.writeBytes(o.getCookie());
-        
-        return bytes.toByteArray();
+    protected byte[] onSerialize(Cookie o) throws ProtocolFormatException {
+        return this.backend.serialize(o.getCookie());
     }
 
     @Override
-    public Cookie deserialize(List<Byte> buf) throws ProtocolFormatException {
-        byte[] bytes;
+    protected Deserialized<Cookie> onDeserialize(List<Byte> buf) throws ProtocolFormatException {
+        Deserialized<byte[]> rawDeserialization = this.backend.deserialize(buf);
         
-        bytes = new byte[buf.size()];
-        for (int i = 0; i < buf.size(); ++i)
-            bytes[i] = buf.get(i);
-        
-        return new Cookie(bytes);
+        return new Deserialized<>(new Cookie(rawDeserialization.getValue()), rawDeserialization.getSize());
     }
 }
