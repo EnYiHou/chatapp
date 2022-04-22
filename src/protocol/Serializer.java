@@ -26,6 +26,9 @@ public abstract class Serializer<T> {
     
     public final Deserialized<T> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
+        if (buf.size() < this.header.length)
+            throw new ProtocolFormatException("Invalid length");
+        
         for (int i = 0; i < this.header.length; ++i)
             if (this.header[i] != buf.get(i))
                 throw new ProtocolFormatException(
@@ -53,5 +56,6 @@ public abstract class Serializer<T> {
     }
     
     abstract protected byte[] onSerialize(T o) throws ProtocolFormatException;
-    abstract protected Deserialized<T> onDeserialize(List<Byte> buf) throws ProtocolFormatException;
+    abstract protected Deserialized<T> onDeserialize(List<Byte> buf)
+        throws ProtocolFormatException;
 }

@@ -2,18 +2,18 @@ package protocol;
 
 public class Response {
     private final EResponseType type;
-    private final String message;
+    private final byte body[];
     
-    public Response(EResponseType type, String message) {
+    public Response(EResponseType type, byte body[]) {
         this.type = type;
-        this.message = message;
+        this.body = body;
     }
 
     public EResponseType getType() {
         return this.type;
     }
 
-    public String getMessage() {
-        return this.message;
+    public byte[] getBody() {
+        return this.body;
     }
 }

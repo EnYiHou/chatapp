@@ -1,6 +1,6 @@
 package protocol;
 
 public enum EResponseType {
-    SUCCESS,
+    COOKIE,
     ERROR
 }

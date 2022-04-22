@@ -1,20 +1,11 @@
 package protocol;
 
 import java.io.ByteArrayOutputStream;
-import java.nio.charset.Charset;
 import java.util.List;
 
 public class ResponseSerializer extends Serializer<Response> {
-    private Charset charset;
-    
     public ResponseSerializer() throws ProtocolFormatException {
-        this(Charset.defaultCharset());
-    }
-    
-    public ResponseSerializer(Charset charset) throws ProtocolFormatException {
         super(new byte[]{'R', 'E', 'S', 'P'});
-        
-        this.charset = charset;
     }
     
     @Override
@@ -25,11 +16,7 @@ public class ResponseSerializer extends Serializer<Response> {
             new EnumSerializer<>(EResponseType.class).serialize(o.getType())
         );
         
-        builder.writeBytes(
-            new BytesSerializer().serialize(
-                o.getMessage().getBytes(this.charset)
-            )
-        );
+        builder.writeBytes(new BytesSerializer().serialize(o.getBody()));
         
         return builder.toByteArray();
     }
@@ -40,16 +27,16 @@ public class ResponseSerializer extends Serializer<Response> {
         Deserialized<EResponseType> rawResponseType =
             new EnumSerializer<>(EResponseType.class).deserialize(buf);
         
-        Deserialized<byte[]> rawMessage = new BytesSerializer().deserialize(
+        Deserialized<byte[]> rawBody = new BytesSerializer().deserialize(
             buf.subList(rawResponseType.getSize(), buf.size())
         );
         
         return new Deserialized<>(
             new Response(
                 rawResponseType.getValue(),
-                new String(rawMessage.getValue(), this.charset)
+                rawBody.getValue()
             ),
-            rawResponseType.getSize() + rawMessage.getSize()
+            rawResponseType.getSize() + rawBody.getSize()
         );
     }
     
