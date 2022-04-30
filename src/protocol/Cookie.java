@@ -9,6 +9,10 @@ public class Cookie {
     private final byte cookie[];
     private static final int COOKIE_SIZE = 32;
     
+    public static Cookie emptyCookie() {
+        return new Cookie(new byte[1]);
+    }
+    
     public Cookie() {
         ByteArrayOutputStream cookieGenerator = new ByteArrayOutputStream();
         

@@ -58,6 +58,17 @@ public class SecretManager {
         return new Hash(password).equals(this.userSecrets.get(username));
     }
     
+    public boolean create(String username, String password)
+        throws NoSuchAlgorithmException {
+        
+        if (this.userSecrets.containsKey(username))
+            return false;
+        
+        this.userSecrets.put(username, new Hash(password));
+        
+        return true;
+    }
+    
     public void save(String path) throws IOException {
         try (FileWriter file = new FileWriter(path)) {
             for (String key : this.userSecrets.keySet())

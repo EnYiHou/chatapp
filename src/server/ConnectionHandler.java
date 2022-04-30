@@ -7,11 +7,11 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.security.NoSuchAlgorithmException;
 import protocol.CookieSerializer;
+import protocol.CredentialsBody;
+import protocol.CredentialsBodySerializer;
 import protocol.Deserialized;
 import protocol.EResponseType;
 import protocol.IntegerSerializer;
-import protocol.LoginBody;
-import protocol.LoginBodySerializer;
 import protocol.ProtocolFormatException;
 import protocol.Request;
 import protocol.RequestSerializer;
@@ -50,14 +50,14 @@ public class ConnectionHandler implements Runnable {
                 ).getValue();
 
                 switch (req.getType()) {
-                    case CREATE: {
+                    case CREATE_CONV: {
                         UserSession sess = this.authManager.loginCookie(
                             req.getCookie()
                         );
 
                         break;
                     }
-                    case JOIN: {
+                    case JOIN_CONV: {
                         UserSession sess = this.authManager.loginCookie(
                             req.getCookie()
                         );
@@ -65,10 +65,30 @@ public class ConnectionHandler implements Runnable {
                         break;
                     }
                     case LOGIN: {
-                        LoginBody loginReq = new LoginBodySerializer()
-                            .deserialize(req.getBody()).getValue();
+                        CredentialsBody loginReq =
+                            new CredentialsBodySerializer()
+                                .deserialize(req.getBody()).getValue();
 
                         UserSession sess = this.authManager.login(
+                            loginReq.getUsername(),
+                            loginReq.getPassword(),
+                            this.conn
+                        );
+
+                        shallClose = false;
+                        response = new Response(
+                            EResponseType.COOKIE,
+                            new CookieSerializer().serialize(sess.getCookie())
+                        );
+
+                        break;
+                    }
+                    case SIGNUP: {
+                        CredentialsBody loginReq =
+                            new CredentialsBodySerializer()
+                                .deserialize(req.getBody()).getValue();
+                        
+                        UserSession sess = this.authManager.signUp(
                             loginReq.getUsername(),
                             loginReq.getPassword(),
                             this.conn
@@ -89,7 +109,7 @@ public class ConnectionHandler implements Runnable {
 
                         break;
                     }
-                    case SEND: {
+                    case SEND_MSG: {
                         UserSession sess = this.authManager.loginCookie(
                             req.getCookie()
                         );
@@ -117,7 +137,7 @@ public class ConnectionHandler implements Runnable {
             } catch (AuthenticationFailureException ex) {
                 response = new Response(
                     EResponseType.ERROR,
-                    new StringSerializer().serialize("unauthorized")
+                    new StringSerializer().serialize(ex.getMessage())
                 );    
             } catch (IOException | NoSuchAlgorithmException ex) {
                 response = new Response(
@@ -125,9 +145,15 @@ public class ConnectionHandler implements Runnable {
                     new StringSerializer().serialize("internal error")
                 );
             } finally {
-                this.conn.getOutputStream().write(
-                    new ResponseSerializer().serialize(response)
+                byte[] serializedResponse =  new ResponseSerializer().serialize(
+                    response
                 );
+                
+                this.conn.getOutputStream().write(
+                    new IntegerSerializer().serialize(serializedResponse.length)
+                );
+                
+                this.conn.getOutputStream().write(serializedResponse);
 
                 if (shallClose)
                     this.conn.close();

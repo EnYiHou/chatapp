@@ -2,8 +2,9 @@ package protocol;
 
 public enum ERequestType {
     LOGIN,
-    SEND,
-    JOIN,
-    CREATE,
+    SIGNUP,
+    SEND_MSG,
+    JOIN_CONV,
+    CREATE_CONV,
     LOGOUT
 }

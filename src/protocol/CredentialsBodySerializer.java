@@ -3,13 +3,13 @@ package protocol;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
-public class LoginBodySerializer extends Serializer<LoginBody> {
-    public LoginBodySerializer() throws ProtocolFormatException {
-        super(new byte[]{'A', 'U', 'T', 'H'});
+public class CredentialsBodySerializer extends Serializer<CredentialsBody> {
+    public CredentialsBodySerializer() throws ProtocolFormatException {
+        super(new byte[]{'C', 'R', 'E', 'D'});
     }
     
     @Override
-    protected byte[] onSerialize(LoginBody o)
+    protected byte[] onSerialize(CredentialsBody o)
         throws ProtocolFormatException {
         ByteArrayOutputStream builder = new ByteArrayOutputStream();
         StringSerializer serializer = new StringSerializer();
@@ -21,7 +21,7 @@ public class LoginBodySerializer extends Serializer<LoginBody> {
     }
 
     @Override
-    protected Deserialized<LoginBody> onDeserialize(List<Byte> buf)
+    protected Deserialized<CredentialsBody> onDeserialize(List<Byte> buf)
         throws ProtocolFormatException {
         StringSerializer serializer = new StringSerializer();
         
@@ -32,7 +32,7 @@ public class LoginBodySerializer extends Serializer<LoginBody> {
         );
         
         return new Deserialized<>(
-            new LoginBody(rawUsername.getValue(), rawPassword.getValue()),
+            new CredentialsBody(rawUsername.getValue(), rawPassword.getValue()),
             rawUsername.getSize() + rawPassword.getSize()
         );
     }

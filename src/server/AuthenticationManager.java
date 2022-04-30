@@ -27,10 +27,25 @@ public class AuthenticationManager {
     }
     
     public UserSession login(String username, String password, Socket conn)
-        throws AuthenticationFailureException, NoSuchAlgorithmException, ProtocolFormatException {
+        throws AuthenticationFailureException, NoSuchAlgorithmException,
+            ProtocolFormatException {
 
         if (!this.secretManager.verify(username, password))
             throw new AuthenticationFailureException("Incorrect credentials");
+        
+        UserSession sess = new UserSession(new User(username), conn);
+        
+        this.sessions.add(sess);
+        
+        return sess;
+    }
+    
+    public UserSession signUp(String username, String password, Socket conn)
+        throws AuthenticationFailureException, NoSuchAlgorithmException,
+            ProtocolFormatException {
+
+        if (!this.secretManager.create(username, password))
+            throw new AuthenticationFailureException("User exists");
         
         UserSession sess = new UserSession(new User(username), conn);
         
