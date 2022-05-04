@@ -2,5 +2,6 @@ package protocol;
 
 public enum EResponseType {
     COOKIE,
-    ERROR
+    ERROR,
+    EMPTY
 }

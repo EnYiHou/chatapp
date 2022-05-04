@@ -106,6 +106,13 @@ public class ConnectionHandler implements Runnable {
                         UserSession sess = this.authManager.loginCookie(
                             req.getCookie()
                         );
+                        
+                        this.authManager.logoutSession(sess);
+                        
+                        response = new Response(
+                            EResponseType.EMPTY,
+                            new byte[0]
+                        );
 
                         break;
                     }
@@ -132,7 +139,9 @@ public class ConnectionHandler implements Runnable {
             } catch (ProtocolFormatException ex) {
                 response = new Response(
                     EResponseType.ERROR,
-                    new StringSerializer().serialize("invalid message")
+                    new StringSerializer().serialize(
+                        "invalid message: " + ex.getMessage()
+                    )
                 );
             } catch (AuthenticationFailureException ex) {
                 response = new Response(

@@ -30,10 +30,12 @@ public class AuthenticationManager {
         throws AuthenticationFailureException, NoSuchAlgorithmException,
             ProtocolFormatException {
 
+        User user = new User(username);
+        
         if (!this.secretManager.verify(username, password))
             throw new AuthenticationFailureException("Incorrect credentials");
         
-        UserSession sess = new UserSession(new User(username), conn);
+        UserSession sess = new UserSession(user, conn);
         
         this.sessions.add(sess);
         
@@ -44,10 +46,12 @@ public class AuthenticationManager {
         throws AuthenticationFailureException, NoSuchAlgorithmException,
             ProtocolFormatException {
 
+        User user = new User(username);
+        
         if (!this.secretManager.create(username, password))
             throw new AuthenticationFailureException("User exists");
         
-        UserSession sess = new UserSession(new User(username), conn);
+        UserSession sess = new UserSession(user, conn);
         
         this.sessions.add(sess);
         
@@ -62,5 +66,10 @@ public class AuthenticationManager {
             .orElseThrow(
                 () -> new AuthenticationFailureException("Invalid cookie")
             );
+    }
+    
+    public void logoutSession(UserSession session) throws AuthenticationFailureException {
+        if (!this.sessions.remove(session))
+            throw new AuthenticationFailureException("Invalid session");
     }
 }

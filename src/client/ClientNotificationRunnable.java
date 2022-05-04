@@ -78,11 +78,24 @@ public class ClientNotificationRunnable implements Runnable {
     
     @Override
     public void run() {
-        while (this.cachedException.get() != null)
+        while (true) {
+            if (Thread.interrupted()) {
+                try {
+                    this.sock.close();
+                } catch (IOException ex1) {
+                }
+                
+                return;
+            }
+
+            if (this.cachedException.get() == null)
+                break;
+            
             try {
                 Thread.sleep(100);
             } catch (InterruptedException ex) {
             }
+        }
         
         try {
             Response resp = new ResponseSerializer().deserialize(
