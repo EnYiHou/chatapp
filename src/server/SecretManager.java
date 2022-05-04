@@ -1,56 +1,20 @@
 package server;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Iterator;
-import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.MatchResult;
-import java.util.stream.Stream;
 
 public class SecretManager {
     private ConcurrentHashMap<String, Hash> userSecrets;
+    private final DatabaseManager dbManager;
     
-    public SecretManager() {
-        this.userSecrets = new ConcurrentHashMap<>();
-    }
-    
-    public SecretManager(File db)
+    public SecretManager(DatabaseManager dbManager)
         throws SecretFormatException, FileNotFoundException,
         SecretDuplicateException, NoSuchAlgorithmException {
-        this();
-        
-        try (Scanner sc = new Scanner(db)) {
-            Stream<MatchResult> matches =
-                sc.findAll("(\\w+):([A-Fa-f0-9]{64})");
-            
-            if (sc.hasNext())
-                throw new SecretFormatException();
-            
-            Iterator<MatchResult> iterator = matches.iterator();
-            
-            while (iterator.hasNext()) {
-                MatchResult match = iterator.next();
-                
-                String username = match.group(1);
-                String hash = match.group(1);
-                
-                if (this.userSecrets.containsKey(username))
-                    throw new SecretDuplicateException(String.format(
-                            "user '%s' already registered",
-                            username
-                    ));
-                
-                try {
-                    this.userSecrets.put(username, Hash.from(hash));
-                } catch (HashInvalidLengthException e) {
-                    throw new SecretFormatException("invalid hash length");
-                }
-            }
-        }
+        this.userSecrets = new ConcurrentHashMap<>();
+        this.dbManager = dbManager;
     }
     
     public boolean verify(String username, String password)

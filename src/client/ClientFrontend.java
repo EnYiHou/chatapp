@@ -148,6 +148,7 @@ public class ClientFrontend {
             return;
         
         while (true) {
+            clearScreen();
             switch (promptMenu()) {
                 case CHANGE_PASSWD: {
                     
@@ -161,7 +162,6 @@ public class ClientFrontend {
                     break;
                 }
                 case LIST_CONVO: {
-                    
                     break;
                 }
                 case LOGOUT: {

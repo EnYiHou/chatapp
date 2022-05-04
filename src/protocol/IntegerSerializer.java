@@ -3,16 +3,9 @@ package protocol;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
-public class IntegerSerializer extends Serializer<Integer> {
-    private static final byte[] localHeader =
-        String.format("SI%02d", Integer.SIZE).getBytes();
-    
-    public IntegerSerializer() throws ProtocolFormatException {
-        super(localHeader);
-    }
-    
+public class IntegerSerializer implements Serializer<Integer> {
     @Override
-    protected byte[] onSerialize(Integer o) {
+    public byte[] serialize(Integer o) {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         
         for (int i = 0; i < Integer.BYTES; ++i)
@@ -22,7 +15,7 @@ public class IntegerSerializer extends Serializer<Integer> {
     }
 
     @Override
-    protected Deserialized<Integer> onDeserialize(List<Byte> buf)
+    public Deserialized<Integer> deserialize(List<Byte> buf)
         throws ProtocolFormatException{
         Integer integer = 0;
         
@@ -33,6 +26,6 @@ public class IntegerSerializer extends Serializer<Integer> {
     }
     
     public static int size() {
-        return localHeader.length + Integer.BYTES;
+        return Integer.BYTES;
     }
 }

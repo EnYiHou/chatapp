@@ -4,7 +4,8 @@ public enum ERequestType {
     LOGIN,
     SIGNUP,
     SEND_MSG,
-    JOIN_CONV,
-    CREATE_CONV,
+    JOIN_CONVO,
+    CREATE_CONVO,
+    LIST_CONVO,
     LOGOUT
 }

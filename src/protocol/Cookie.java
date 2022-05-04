@@ -10,7 +10,7 @@ public class Cookie {
     private static final int COOKIE_SIZE = 32;
     
     public static Cookie emptyCookie() {
-        return new Cookie(new byte[1]);
+        return new Cookie(new byte[0]);
     }
     
     public Cookie() {

@@ -3,7 +3,7 @@ package protocol;
 import java.nio.charset.Charset;
 import java.util.List;
 
-public class StringSerializer extends Serializer<String> {
+public class StringSerializer implements Serializer<String> {
     private Charset charset;
     
     public StringSerializer() throws ProtocolFormatException {
@@ -11,18 +11,16 @@ public class StringSerializer extends Serializer<String> {
     }
         
     public StringSerializer(Charset charset) throws ProtocolFormatException {
-        super(new byte[]{'S', 'T', 'R', 'N'});
-        
         this.charset = charset;
     }
     
     @Override
-    protected byte[] onSerialize(String o) throws ProtocolFormatException {
+    public byte[] serialize(String o) throws ProtocolFormatException {
         return new BytesSerializer().serialize(o.getBytes(this.charset));
     }
 
     @Override
-    protected Deserialized<String> onDeserialize(List<Byte> buf)
+    public Deserialized<String> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
         Deserialized<byte[]> raw = new BytesSerializer().deserialize(buf);
         

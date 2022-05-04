@@ -3,13 +3,9 @@ package protocol;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
-public class CredentialsBodySerializer extends Serializer<CredentialsBody> {
-    public CredentialsBodySerializer() throws ProtocolFormatException {
-        super(new byte[]{'C', 'R', 'E', 'D'});
-    }
-    
+public class CredentialsBodySerializer implements Serializer<CredentialsBody> {
     @Override
-    protected byte[] onSerialize(CredentialsBody o)
+    public byte[] serialize(CredentialsBody o)
         throws ProtocolFormatException {
         ByteArrayOutputStream builder = new ByteArrayOutputStream();
         StringSerializer serializer = new StringSerializer();
@@ -21,7 +17,7 @@ public class CredentialsBodySerializer extends Serializer<CredentialsBody> {
     }
 
     @Override
-    protected Deserialized<CredentialsBody> onDeserialize(List<Byte> buf)
+    public Deserialized<CredentialsBody> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
         StringSerializer serializer = new StringSerializer();
         

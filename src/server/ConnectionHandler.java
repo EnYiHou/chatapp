@@ -50,14 +50,14 @@ public class ConnectionHandler implements Runnable {
                 ).getValue();
 
                 switch (req.getType()) {
-                    case CREATE_CONV: {
+                    case CREATE_CONVO: {
                         UserSession sess = this.authManager.loginCookie(
                             req.getCookie()
                         );
 
                         break;
                     }
-                    case JOIN_CONV: {
+                    case JOIN_CONVO: {
                         UserSession sess = this.authManager.loginCookie(
                             req.getCookie()
                         );

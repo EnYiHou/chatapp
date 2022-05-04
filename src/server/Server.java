@@ -1,23 +1,28 @@
 package server;
 
-import java.io.File;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 
 public class Server {
-    private AuthenticationManager authManager;
     public static final int PORT = 5200;
+    private final AuthenticationManager authManager;
+    private final DatabaseManager dbManager;
     private ServerListenerThread listener;
-
-    public Server() throws IOException {
-        this.authManager = new AuthenticationManager();
+    
+    public Server() throws IOException, SecretFormatException,
+            SecretDuplicateException,HashInvalidLengthException,
+            NoSuchAlgorithmException, DatabaseException {
+        this.dbManager = new DatabaseManager();
+        this.authManager = new AuthenticationManager(this.dbManager);
         this.listener = null;
     }
     
-    public Server(File db)
+    public Server(String db)
         throws SecretFormatException, SecretDuplicateException,
-            HashInvalidLengthException, IOException, NoSuchAlgorithmException {
-        this.authManager = new AuthenticationManager(db);
+            HashInvalidLengthException, IOException, NoSuchAlgorithmException,
+            DatabaseException {
+        this.dbManager = new DatabaseManager(db);
+        this.authManager = new AuthenticationManager(this.dbManager);
         this.listener = null;
     }
     
@@ -33,11 +38,13 @@ public class Server {
         return this.listener.isAlive();
     }
     
-    public void close() throws IOException, InterruptedException {
+    public void close() throws IOException, InterruptedException, DatabaseException {
         if (this.listener == null || !this.listener.isAlive())
             throw new IOException("Server not listening");
         
         this.listener.interrupt();
         this.listener.join();
+        
+        this.dbManager.close();
     }
 }

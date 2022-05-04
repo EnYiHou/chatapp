@@ -2,23 +2,21 @@ package protocol;
 
 import java.util.List;
 
-public class EnumSerializer<E extends Enum<E>> extends Serializer<E> {
+public class EnumSerializer<E extends Enum<E>> implements Serializer<E> {
     Class<E> enumClass;
     
     public EnumSerializer(Class<E> enumClass)
         throws ProtocolFormatException {
-        super(new byte[]{'E', 'N', 'U', 'M'});
-        
         this.enumClass = enumClass;
     }
     
     @Override
-    protected byte[] onSerialize(E o) throws ProtocolFormatException {
+    public byte[] serialize(E o) throws ProtocolFormatException {
         return new IntegerSerializer().serialize(o.ordinal());
     }
 
     @Override
-    protected Deserialized<E> onDeserialize(List<Byte> buf)
+    public Deserialized<E> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
         Deserialized<Integer> rawEnumValue =
             new IntegerSerializer().deserialize(buf);

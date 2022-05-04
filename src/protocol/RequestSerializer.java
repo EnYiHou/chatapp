@@ -3,13 +3,9 @@ package protocol;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
-public class RequestSerializer extends Serializer<Request> {
-    public RequestSerializer() throws ProtocolFormatException {
-        super(new byte[]{'R', 'E', 'Q', 'N'});
-    }
-    
+public class RequestSerializer implements Serializer<Request> {
     @Override
-    protected byte[] onSerialize(Request o) throws ProtocolFormatException {
+    public byte[] serialize(Request o) throws ProtocolFormatException {
         ByteArrayOutputStream builder = new ByteArrayOutputStream();
         
         builder.writeBytes(
@@ -24,7 +20,7 @@ public class RequestSerializer extends Serializer<Request> {
     }
 
     @Override
-    protected Deserialized<Request> onDeserialize(List<Byte> buf)
+    public Deserialized<Request> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
         Deserialized<ERequestType> rawType =
             new EnumSerializer<>(ERequestType.class).deserialize(buf);

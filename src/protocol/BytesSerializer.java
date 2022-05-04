@@ -3,13 +3,9 @@ package protocol;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
-public class BytesSerializer extends Serializer<byte[]>{
-    public BytesSerializer() throws ProtocolFormatException {
-        super(new byte[]{'B', 'Y', 'T', 'E'});
-    }
-    
+public class BytesSerializer implements Serializer<byte[]>{
     @Override
-    protected byte[] onSerialize(byte[] o) throws ProtocolFormatException {
+    public byte[] serialize(byte[] o) throws ProtocolFormatException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         
         bytes.writeBytes(new IntegerSerializer().serialize(o.length));
@@ -19,7 +15,7 @@ public class BytesSerializer extends Serializer<byte[]>{
     }
     
     @Override
-    protected Deserialized<byte[]> onDeserialize(List<Byte> buf)
+    public Deserialized<byte[]> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
         Deserialized<Integer> size;
         byte[] stringByteArray;

@@ -3,13 +3,9 @@ package protocol;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
-public class ResponseSerializer extends Serializer<Response> {
-    public ResponseSerializer() throws ProtocolFormatException {
-        super(new byte[]{'R', 'E', 'S', 'P'});
-    }
-    
+public class ResponseSerializer implements Serializer<Response> {
     @Override
-    protected byte[] onSerialize(Response o) throws ProtocolFormatException {
+    public byte[] serialize(Response o) throws ProtocolFormatException {
         ByteArrayOutputStream builder = new ByteArrayOutputStream();
         
         builder.writeBytes(
@@ -17,26 +13,26 @@ public class ResponseSerializer extends Serializer<Response> {
         );
         
         builder.writeBytes(new BytesSerializer().serialize(o.getBody()));
-        
+
         return builder.toByteArray();
     }
 
     @Override
-    protected Deserialized<Response> onDeserialize(List<Byte> buf)
+    public Deserialized<Response> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
-        Deserialized<EResponseType> rawResponseType =
+        Deserialized<EResponseType> rawType =
             new EnumSerializer<>(EResponseType.class).deserialize(buf);
         
         Deserialized<byte[]> rawBody = new BytesSerializer().deserialize(
-            buf.subList(rawResponseType.getSize(), buf.size())
+            buf.subList(rawType.getSize(), buf.size())
         );
         
         return new Deserialized<>(
             new Response(
-                rawResponseType.getValue(),
+                rawType.getValue(),
                 rawBody.getValue()
             ),
-            rawResponseType.getSize() + rawBody.getSize()
+            rawType.getSize() + rawBody.getSize()
         );
     }
     

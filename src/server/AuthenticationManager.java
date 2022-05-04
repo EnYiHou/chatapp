@@ -14,15 +14,10 @@ public class AuthenticationManager {
     private final Set<UserSession> sessions;
     private final SecretManager secretManager;
     
-    public AuthenticationManager() {
-        this.secretManager = new SecretManager();
-        this.sessions = ConcurrentHashMap.newKeySet();
-    }
-    
-    public AuthenticationManager(File db)
+    public AuthenticationManager(DatabaseManager dbManager)
         throws SecretFormatException, FileNotFoundException,
         SecretDuplicateException, NoSuchAlgorithmException {
-        this.secretManager = new SecretManager(db);
+        this.secretManager = new SecretManager(dbManager);
         this.sessions = ConcurrentHashMap.newKeySet();
     }
     
