@@ -6,8 +6,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import protocol.Cookie;
 import protocol.ProtocolFormatException;
-import protocol.User;
-import java.sql.Connection;
 import java.sql.SQLException;
 
 public class AuthenticationManager {
@@ -23,12 +21,10 @@ public class AuthenticationManager {
         throws AuthenticationFailureException, NoSuchAlgorithmException,
             ProtocolFormatException, SQLException {
 
-        User user = new User(username);
-        
         if (!this.secretManager.verify(username, password))
             throw new AuthenticationFailureException("Incorrect credentials");
         
-        UserSession sess = new UserSession(user, conn);
+        UserSession sess = new UserSession(username, conn);
         
         this.sessions.add(sess);
         
@@ -39,12 +35,10 @@ public class AuthenticationManager {
         throws AuthenticationFailureException, NoSuchAlgorithmException,
             ProtocolFormatException, SQLException {
 
-        User user = new User(username);
-        
         if (!this.secretManager.create(username, password))
             throw new AuthenticationFailureException("User exists");
         
-        UserSession sess = new UserSession(user, conn);
+        UserSession sess = new UserSession(username, conn);
         
         this.sessions.add(sess);
         

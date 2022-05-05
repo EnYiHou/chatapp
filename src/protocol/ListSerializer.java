@@ -30,11 +30,11 @@ public class ListSerializer<T> implements Serializer<List<T>> {
         int j = 0;
         
         size = new IntegerSerializer().deserialize(buf);
-        
+
         list = new ArrayList<>(size.getValue());
         for (int i = 0; i < size.getValue(); ++i) {
             Deserialized<T> o = this.subSerializer.deserialize(
-                buf.subList(j, buf.size())
+                buf.subList(size.getSize() + j, buf.size())
             );
             
             j += o.getSize();

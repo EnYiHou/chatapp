@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.regex.Pattern;
 
 public class SecretManager {
     private final Connection dbConn;
@@ -41,9 +42,14 @@ public class SecretManager {
     }
     
     public boolean create(String username, String password)
-        throws NoSuchAlgorithmException, SQLException {
+        throws NoSuchAlgorithmException, SQLException, AuthenticationFailureException {
         boolean result;
 
+        Pattern pattern = Pattern.compile("^[A-Za-z0-9_ ]{3,}$");
+        
+        if (!pattern.matcher(username).matches())
+            throw new AuthenticationFailureException("Invalid username");
+        
         try (PreparedStatement stmt = this.dbConn.prepareStatement(
             "INSERT INTO secrets(username, hash) VALUES(?, ?)"
         )) {

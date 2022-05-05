@@ -23,9 +23,12 @@ public class BytesSerializer implements Serializer<byte[]>{
         size = new IntegerSerializer().deserialize(buf);
         
         stringByteArray = new byte[size.getValue()];
+        
         for (int i = 0; i < size.getValue(); ++i)
             stringByteArray[i] = buf.get(size.getSize() + i);
         
-        return new Deserialized<>(stringByteArray, size.getSize() + size.getValue());
+        return new Deserialized<>(
+            stringByteArray, size.getSize() + size.getValue()
+        );
     }
 }

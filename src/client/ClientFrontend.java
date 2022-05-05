@@ -2,6 +2,7 @@ package client;
 
 import java.io.IOException;
 import java.util.InputMismatchException;
+import java.util.List;
 import java.util.Scanner;
 import protocol.Conversation;
 import protocol.ProtocolFormatException;
@@ -163,7 +164,7 @@ public class ClientFrontend {
                         );
                         
                         System.out.printf(
-                            "Successfully created conversation" +
+                            "Successfully created conversation " +
                             "'%s' with code '%s'%n",
                             conv.getName(),
                             conv.getCode()
@@ -182,6 +183,25 @@ public class ClientFrontend {
                     break;
                 }
                 case LIST_CONVO: {
+                    try {
+                        List<Conversation> conv = client.listConversations();
+                        
+                        System.out.println("Conversations:");
+                        
+                        conv.forEach(
+                            (c) -> System.out.printf(
+                                "  %s (code: %s)%n",
+                                c.getName(),
+                                c.getCode()
+                            )
+                        );
+                    } catch (
+                        ServerErrorException |
+                        IOException |
+                        ProtocolFormatException ex
+                    ) {
+                        printError(ex);
+                    }
                     
                     break;
                 }

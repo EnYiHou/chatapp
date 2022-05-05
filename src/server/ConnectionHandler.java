@@ -15,6 +15,7 @@ import protocol.CredentialsBodySerializer;
 import protocol.Deserialized;
 import protocol.EResponseType;
 import protocol.IntegerSerializer;
+import protocol.ListSerializer;
 import protocol.ProtocolFormatException;
 import protocol.Request;
 import protocol.RequestSerializer;
@@ -70,7 +71,7 @@ public class ConnectionHandler implements Runnable {
                         Conversation conv =
                             this.messageManager.createConversation(
                                 this.secretManager.getUserId(
-                                    sess.getUser().getUsername()
+                                    sess.getUsername()
                                 ),
                                 new ConversationSerializer().deserialize(
                                     req.getBody()
@@ -89,6 +90,26 @@ public class ConnectionHandler implements Runnable {
                             req.getCookie()
                         );
 
+                        break;
+                    }
+                    case LIST_CONVO: {
+                        UserSession sess = this.authManager.loginCookie(
+                            req.getCookie()
+                        );
+
+                        response = new Response(
+                            EResponseType.CONVERSATIONS,
+                            new ListSerializer<>(
+                                new ConversationSerializer()
+                            ).serialize(
+                                this.messageManager.listConversations(
+                                    this.secretManager.getUserId(
+                                        sess.getUsername()
+                                    )
+                                )
+                            )
+                        );
+                        
                         break;
                     }
                     case LOGIN: {

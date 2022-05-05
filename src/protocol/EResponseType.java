@@ -4,5 +4,6 @@ public enum EResponseType {
     COOKIE,
     ERROR,
     EMPTY,
-    CONVERSATION
+    CONVERSATION,
+    CONVERSATIONS
 }

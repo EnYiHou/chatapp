@@ -8,6 +8,7 @@ import protocol.ConversationSerializer;
 import protocol.ERequestType;
 import protocol.EResponseType;
 import protocol.IntegerSerializer;
+import protocol.ListSerializer;
 import protocol.ProtocolFormatException;
 import protocol.Request;
 import protocol.RequestSerializer;
@@ -115,6 +116,22 @@ public class Client {
         );
         
         return new ConversationSerializer().deserialize(
+            resp.getBody()
+        ).getValue();
+    }
+    
+    public List<Conversation> listConversations()
+        throws ProtocolFormatException, IOException, ServerErrorException {
+        Response resp = this.request(
+            new Request(
+                ERequestType.LIST_CONVO,
+                this.runnable.getCookie(),
+                new byte[0]
+            ),
+            EResponseType.CONVERSATIONS
+        );
+
+        return new ListSerializer<>(new ConversationSerializer()).deserialize(
             resp.getBody()
         ).getValue();
     }

@@ -6,21 +6,20 @@ import protocol.Cookie;
 import protocol.ProtocolFormatException;
 import protocol.Response;
 import protocol.ResponseSerializer;
-import protocol.User;
 
 public class UserSession {
-    private final User user;
+    private final String username;
     private final Socket notificationSocket;
     private final Cookie cookie;
     
-    public UserSession(User user, Socket notificationSocket) {
-        this.user = user;
+    public UserSession(String username, Socket notificationSocket) {
+        this.username = username;
         this.cookie = new Cookie();
         this.notificationSocket = notificationSocket;
     }
 
-    public User getUser() {
-        return user;
+    public String getUsername() {
+        return username;
     }
 
     public Cookie getCookie() {
@@ -48,13 +47,13 @@ public class UserSession {
         
         final UserSession other = (UserSession) obj;
         
-        return this.user.equals(other.user) && this.cookie.equals(other.cookie);
+        return this.username.equals(other.username) && this.cookie.equals(other.cookie);
     }
 
     @Override
     public int hashCode() {
         int hash = 7;
-        hash = 37 * hash + this.user.hashCode();
+        hash = 37 * hash + this.username.hashCode();
         hash = 37 * hash + this.cookie.hashCode();
         return hash;
     }

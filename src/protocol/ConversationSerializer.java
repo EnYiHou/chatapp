@@ -22,6 +22,7 @@ public class ConversationSerializer implements Serializer<Conversation> {
     public Deserialized<Conversation> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
         StringSerializer stringSerializer = new StringSerializer();
+        System.out.println(buf);
         
         Deserialized<String> rawCode = stringSerializer.deserialize(buf);
         Deserialized<String> rawName = stringSerializer.deserialize(
