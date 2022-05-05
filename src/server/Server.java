@@ -12,19 +12,23 @@ public class Server {
     private final AuthenticationManager authManager;
     private final Connection dbConn;
     private ServerListenerThread listener;
+    private final MessageManager messageManager;
+    private SecretManager secretManager;
     
     public Server() throws IOException, SecretFormatException,
-            SecretDuplicateException,HashInvalidLengthException,
+            HashInvalidLengthException,
             NoSuchAlgorithmException, SQLException {
         this(DEFAULT_DB_PATH);
     }
     
     public Server(String dbPath)
-        throws SecretFormatException, SecretDuplicateException,
+        throws SecretFormatException,
             HashInvalidLengthException, IOException, NoSuchAlgorithmException,
             SQLException {
         this.dbConn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
-        this.authManager = new AuthenticationManager(this.dbConn);
+        this.secretManager = new SecretManager(this.dbConn);
+        this.authManager = new AuthenticationManager(this.secretManager);
+        this.messageManager = new MessageManager(this.dbConn);
         this.listener = null;
     }
     
@@ -32,7 +36,9 @@ public class Server {
         if (this.listener != null && this.listener.isAlive())
             throw new IOException("Server already listening");
         
-        this.listener = new ServerListenerThread(PORT, this.authManager);
+        this.listener = new ServerListenerThread(
+            PORT, this.secretManager, this.authManager, this.messageManager
+        );
         this.listener.start();
     }
     

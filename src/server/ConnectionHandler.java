@@ -7,6 +7,8 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
+import protocol.Conversation;
+import protocol.ConversationSerializer;
 import protocol.CookieSerializer;
 import protocol.CredentialsBody;
 import protocol.CredentialsBodySerializer;
@@ -23,11 +25,20 @@ import protocol.StringSerializer;
 public class ConnectionHandler implements Runnable {
     private final Socket conn;
     private final AuthenticationManager authManager;
+    private final MessageManager messageManager;
+    private final SecretManager secretManager;
     
-    ConnectionHandler(Socket conn, AuthenticationManager authManager)
+    ConnectionHandler(
+        Socket conn,
+        SecretManager secretManager,
+        AuthenticationManager authManager,
+        MessageManager messageManager
+    )
         throws SocketException {
         this.conn = conn;
+        this.secretManager = secretManager;
         this.authManager = authManager;
+        this.messageManager = messageManager;
         this.conn.setSoTimeout(10000);
     }
     
@@ -55,7 +66,22 @@ public class ConnectionHandler implements Runnable {
                         UserSession sess = this.authManager.loginCookie(
                             req.getCookie()
                         );
+                        
+                        Conversation conv =
+                            this.messageManager.createConversation(
+                                this.secretManager.getUserId(
+                                    sess.getUser().getUsername()
+                                ),
+                                new ConversationSerializer().deserialize(
+                                    req.getBody()
+                                ).getValue().getName()
+                            );
 
+                        response = new Response(
+                            EResponseType.CONVERSATION,
+                            new ConversationSerializer().serialize(conv)
+                        );
+                        
                         break;
                     }
                     case JOIN_CONVO: {

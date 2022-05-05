@@ -2,6 +2,9 @@ package client;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.List;
+import protocol.Conversation;
+import protocol.ConversationSerializer;
 import protocol.ERequestType;
 import protocol.EResponseType;
 import protocol.IntegerSerializer;
@@ -96,5 +99,23 @@ public class Client {
             this.notificationThread.join();
         } catch (InterruptedException ex) {
         }
+    }
+    
+    public Conversation createConversation(String name)
+        throws ProtocolFormatException, IOException, ServerErrorException {
+        Response resp = this.request(
+            new Request(
+                ERequestType.CREATE_CONVO,
+                this.runnable.getCookie(),
+                new ConversationSerializer().serialize(
+                    new Conversation("", name, List.of())
+                )
+            ),
+            EResponseType.CONVERSATION
+        );
+        
+        return new ConversationSerializer().deserialize(
+            resp.getBody()
+        ).getValue();
     }
 }

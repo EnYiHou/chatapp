@@ -1,7 +1,5 @@
 package server;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.net.Socket;
 import java.security.NoSuchAlgorithmException;
 import java.util.Set;
@@ -16,11 +14,9 @@ public class AuthenticationManager {
     private final Set<UserSession> sessions;
     private final SecretManager secretManager;
     
-    public AuthenticationManager(Connection dbConn)
-        throws SecretFormatException, FileNotFoundException,
-        SecretDuplicateException, NoSuchAlgorithmException, SQLException {
-        this.secretManager = new SecretManager(dbConn);
+    public AuthenticationManager(SecretManager secretManager) {
         this.sessions = ConcurrentHashMap.newKeySet();
+        this.secretManager = secretManager;
     }
     
     public UserSession login(String username, String password, Socket conn)

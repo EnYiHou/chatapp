@@ -1,36 +1,37 @@
 package protocol;
 
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.List;
 
-public class ArraySerializer<T> implements Serializer<T[]> {
+public class ListSerializer<T> implements Serializer<List<T>> {
     Serializer subSerializer;
     
-    public ArraySerializer(Serializer<T> subSerializer) {
+    public ListSerializer(Serializer<T> subSerializer) {
         this.subSerializer = subSerializer;
     }
     
     @Override
-    public byte[] serialize(T[] arr) throws ProtocolFormatException {
+    public byte[] serialize(List<T> list) throws ProtocolFormatException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         
-        bytes.writeBytes(new IntegerSerializer().serialize(arr.length));
-        for (T o : arr)
+        bytes.writeBytes(new IntegerSerializer().serialize(list.size()));
+        for (T o : list)
             bytes.writeBytes(this.subSerializer.serialize(o));
         
         return bytes.toByteArray();
     }
 
     @Override
-    public Deserialized<T[]> deserialize(List<Byte> buf)
+    public Deserialized<List<T>> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
         Deserialized<Integer> size;
-        T[] arr;
+        List<T> list;
         int j = 0;
         
         size = new IntegerSerializer().deserialize(buf);
         
-        arr = (T[])new Object[size.getValue()];
+        list = new ArrayList<>(size.getValue());
         for (int i = 0; i < size.getValue(); ++i) {
             Deserialized<T> o = this.subSerializer.deserialize(
                 buf.subList(j, buf.size())
@@ -38,9 +39,9 @@ public class ArraySerializer<T> implements Serializer<T[]> {
             
             j += o.getSize();
             
-            arr[i] = o.getValue();
+            list.add(o.getValue());
         }
         
-        return new Deserialized<>(arr, size.getSize() + j);
+        return new Deserialized<>(list, size.getSize() + j);
     }
 }

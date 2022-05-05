@@ -34,4 +34,8 @@ public class User {
     public int hashCode() {
         return this.username.hashCode();
     }
+
+    public String getUsername() {
+        return username;
+    }
 }

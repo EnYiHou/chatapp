@@ -4,14 +4,14 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.Statement;
 
 public class SecretManager {
     private final Connection dbConn;
     
     public SecretManager(Connection dbConn)
-        throws SecretFormatException,
-        SecretDuplicateException, NoSuchAlgorithmException, SQLException {
+        throws SecretFormatException, SQLException {
         this.dbConn = dbConn;
         
         try (Statement stmt = this.dbConn.createStatement()) {
@@ -59,5 +59,21 @@ public class SecretManager {
         }
         
         return result;
+    }
+    
+    public int getUserId(String username) throws SQLException {
+        int id;
+        
+        try (PreparedStatement stmt = this.dbConn.prepareStatement(
+            "SELECT id FROM secrets WHERE username = ?"
+        )) {
+            stmt.setString(1, username);
+            
+            ResultSet r = stmt.executeQuery();
+            
+            id = r.getInt("id");
+        }
+        
+        return id;
     }
 }

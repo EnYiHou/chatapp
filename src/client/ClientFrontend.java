@@ -3,6 +3,7 @@ package client;
 import java.io.IOException;
 import java.util.InputMismatchException;
 import java.util.Scanner;
+import protocol.Conversation;
 import protocol.ProtocolFormatException;
 
 
@@ -155,6 +156,25 @@ public class ClientFrontend {
                     break;
                 }
                 case CREATE_CONVO: {
+                    try {
+                        System.out.print("Conversation name: ");
+                        Conversation conv = client.createConversation(
+                            sc.nextLine()
+                        );
+                        
+                        System.out.printf(
+                            "Successfully created conversation" +
+                            "'%s' with code '%s'%n",
+                            conv.getName(),
+                            conv.getCode()
+                        );
+                    } catch (
+                        ServerErrorException |
+                        IOException |
+                        ProtocolFormatException ex
+                    ) {
+                        printError(ex);
+                    }
                     
                     break;
                 }

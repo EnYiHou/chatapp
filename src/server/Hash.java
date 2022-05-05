@@ -5,7 +5,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class Hash {
-    public static final String HASH_ALGO = "SHA-1";
+    public static final String HASH_ALGO = "SHA-256";
     private MessageDigest digest;
     private byte[] hash;
     
@@ -57,7 +57,10 @@ public class Hash {
 
     public String hex() {
         StringBuilder builder = new StringBuilder();
-        final char[] hexChars = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+        final char[] hexChars = {
+            '0', '1', '2', '3', '4', '5', '6', '7',
+            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+        };
         
         for (byte b : this.hash) {
             builder.append(hexChars[(b & 0xF0) >>> 4]);
