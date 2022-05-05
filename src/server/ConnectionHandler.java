@@ -6,6 +6,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
 import protocol.CookieSerializer;
 import protocol.CredentialsBody;
 import protocol.CredentialsBodySerializer;
@@ -148,7 +149,7 @@ public class ConnectionHandler implements Runnable {
                     EResponseType.ERROR,
                     new StringSerializer().serialize(ex.getMessage())
                 );    
-            } catch (IOException | NoSuchAlgorithmException ex) {
+            } catch (IOException | NoSuchAlgorithmException | SQLException ex) {
                 response = new Response(
                     EResponseType.ERROR,
                     new StringSerializer().serialize("internal error")

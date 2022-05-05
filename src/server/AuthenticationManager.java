@@ -9,21 +9,23 @@ import java.util.concurrent.ConcurrentHashMap;
 import protocol.Cookie;
 import protocol.ProtocolFormatException;
 import protocol.User;
+import java.sql.Connection;
+import java.sql.SQLException;
 
 public class AuthenticationManager {
     private final Set<UserSession> sessions;
     private final SecretManager secretManager;
     
-    public AuthenticationManager(DatabaseManager dbManager)
+    public AuthenticationManager(Connection dbConn)
         throws SecretFormatException, FileNotFoundException,
-        SecretDuplicateException, NoSuchAlgorithmException {
-        this.secretManager = new SecretManager(dbManager);
+        SecretDuplicateException, NoSuchAlgorithmException, SQLException {
+        this.secretManager = new SecretManager(dbConn);
         this.sessions = ConcurrentHashMap.newKeySet();
     }
     
     public UserSession login(String username, String password, Socket conn)
         throws AuthenticationFailureException, NoSuchAlgorithmException,
-            ProtocolFormatException {
+            ProtocolFormatException, SQLException {
 
         User user = new User(username);
         
@@ -39,7 +41,7 @@ public class AuthenticationManager {
     
     public UserSession signUp(String username, String password, Socket conn)
         throws AuthenticationFailureException, NoSuchAlgorithmException,
-            ProtocolFormatException {
+            ProtocolFormatException, SQLException {
 
         User user = new User(username);
         

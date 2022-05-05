@@ -162,6 +162,7 @@ public class ClientFrontend {
                     break;
                 }
                 case LIST_CONVO: {
+                    
                     break;
                 }
                 case LOGOUT: {
