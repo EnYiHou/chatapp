@@ -148,7 +148,7 @@ public class ClientFrontend {
     
     private static void startChat(Client client)
         throws ProtocolFormatException, IOException {
-        Integer prevMessagesHash = null;
+        boolean shallReprint = true;
         Function<String, Ansi> promptSupplier = (lastServerError) -> Ansi.ansi()
             .eraseScreen()
             .cursor(client.getMaxMessages() + 2, 0)
@@ -176,14 +176,11 @@ public class ClientFrontend {
                     immediateFlush(promptSupplier.apply(ex.getMessage()));
                 }
                 
-                prevMessagesHash = null;
+                shallReprint = true;
             }
             
-            if (
-                prevMessagesHash == null ||
-                prevMessagesHash != client.getMessagesHashCode()
-            ) {
-                prevMessagesHash = client.getMessagesHashCode();
+            if (shallReprint || client.newMessages()) {
+                shallReprint = false;
     
                 final Message[] messages = client.getMessagesSnapshot();
                 
@@ -214,6 +211,11 @@ public class ClientFrontend {
                 immediateFlush(
                     Ansi.ansi().restoreCursorPosition()
                 );
+            } else {
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException ex) {
+                }
             }
         } while (true);
     }

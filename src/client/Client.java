@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import protocol.Conversation;
 import protocol.ConversationSerializer;
 import protocol.ERequestType;
@@ -26,6 +27,7 @@ public class Client {
     private final LimitedPriorityBlockingQueue<Message> messages;
     private final int maxMessages;
     private final static int DEFAULT_MAX_MESSAGES = 15;
+    private AtomicBoolean newMessages;
 
     Client(String host, int port) {
         this(host, port, DEFAULT_MAX_MESSAGES);
@@ -37,8 +39,10 @@ public class Client {
         this.maxMessages = maxMessages;
         this.messages = new LimitedPriorityBlockingQueue<>(
             this.maxMessages,
-            new MessageTimestampComparator()
+            new MessageTimestampComparator(),
+            () -> this.newMessages.set(true)
         );
+        this.newMessages = new AtomicBoolean(false);
     }
     
     public int getMaxMessages() {
@@ -170,13 +174,14 @@ public class Client {
         Message[] snapshot = new Message[this.messages.size()];
         
         this.messages.toArray(snapshot);
+        this.newMessages.set(false);
         
         Arrays.sort(snapshot, new MessageTimestampComparator());
         
         return snapshot;
     }
 
-    void sendMessage(String input) throws ProtocolFormatException, IOException, ServerErrorException {
+    public void sendMessage(String input) throws ProtocolFormatException, IOException, ServerErrorException {
         this.request(
             new Request(
                 ERequestType.SEND_MSG,
@@ -187,7 +192,7 @@ public class Client {
         );
     }
 
-    int getMessagesHashCode() {
-        return this.messages.hashCode();
+    public boolean newMessages() {
+        return this.newMessages.get();
     }
 }
