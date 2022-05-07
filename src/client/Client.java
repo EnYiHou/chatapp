@@ -2,6 +2,7 @@ package client;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.List;
 import protocol.Conversation;
 import protocol.ConversationSerializer;
@@ -9,6 +10,7 @@ import protocol.ERequestType;
 import protocol.EResponseType;
 import protocol.IntegerSerializer;
 import protocol.ListSerializer;
+import protocol.Message;
 import protocol.ProtocolFormatException;
 import protocol.Request;
 import protocol.RequestSerializer;
@@ -21,10 +23,26 @@ public class Client {
     private final int port;
     ClientNotificationRunnable runnable;
     Thread notificationThread;
-        
+    private final LimitedPriorityBlockingQueue<Message> messages;
+    private final int maxMessages;
+    private final static int DEFAULT_MAX_MESSAGES = 15;
+
     Client(String host, int port) {
+        this(host, port, DEFAULT_MAX_MESSAGES);
+    }
+    
+    Client(String host, int port, int maxMessages) {
         this.host = host;
         this.port = port;
+        this.maxMessages = maxMessages;
+        this.messages = new LimitedPriorityBlockingQueue<>(
+            this.maxMessages,
+            new MessageTimestampComparator()
+        );
+    }
+    
+    public int getMaxMessages() {
+        return this.maxMessages;
     }
     
     private Response request(Request req, EResponseType expectedResponseType)
@@ -38,8 +56,6 @@ public class Client {
         );
         
         sock.getOutputStream().write(serializedRequest);
-        
-        
         
         Response resp = new ResponseSerializer().deserialize(
             sock.getInputStream().readNBytes(
@@ -77,10 +93,12 @@ public class Client {
             this.port,
             username,
             password,
-            signingUp
+            signingUp,
+            messages
         );
         
         this.notificationThread = new Thread(this.runnable);
+        this.notificationThread.start();
     }
     
     public void logout()
@@ -108,9 +126,7 @@ public class Client {
             new Request(
                 ERequestType.CREATE_CONVO,
                 this.runnable.getCookie(),
-                new ConversationSerializer().serialize(
-                    new Conversation("", name, List.of())
-                )
+                new StringSerializer().serialize(name)
             ),
             EResponseType.CONVERSATION
         );
@@ -134,5 +150,44 @@ public class Client {
         return new ListSerializer<>(new ConversationSerializer()).deserialize(
             resp.getBody()
         ).getValue();
+    }
+    
+    public void joinConversation(String code)
+        throws ProtocolFormatException, IOException, ServerErrorException {
+        this.messages.clear();
+        
+        this.request(
+            new Request(
+                ERequestType.JOIN_CONVO,
+                this.runnable.getCookie(),
+                new StringSerializer().serialize(code)
+            ),
+            EResponseType.EMPTY
+        );
+    }
+    
+    public Message[] getMessagesSnapshot() {
+        Message[] snapshot = new Message[this.messages.size()];
+        
+        this.messages.toArray(snapshot);
+        
+        Arrays.sort(snapshot, new MessageTimestampComparator());
+        
+        return snapshot;
+    }
+
+    void sendMessage(String input) throws ProtocolFormatException, IOException, ServerErrorException {
+        this.request(
+            new Request(
+                ERequestType.SEND_MSG,
+                this.runnable.getCookie(),
+                new StringSerializer().serialize(input)
+            ),
+            EResponseType.EMPTY
+        );
+    }
+
+    int getMessagesHashCode() {
+        return this.messages.hashCode();
     }
 }

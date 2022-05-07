@@ -7,7 +7,7 @@ import java.util.Scanner;
 
 public class ServerFrontend {
     public static void main(String[] args)
-        throws IOException, InterruptedException, SecretFormatException,
+        throws IOException, InterruptedException,
             HashInvalidLengthException,
             NoSuchAlgorithmException, SQLException {
         Server server = new Server();
@@ -25,5 +25,4 @@ public class ServerFrontend {
         
         System.out.println("Done");
     }
-    
 }

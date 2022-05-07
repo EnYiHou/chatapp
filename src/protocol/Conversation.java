@@ -1,16 +1,12 @@
 package protocol;
 
-import java.util.List;
-
 public class Conversation {
     private final String code;
     private final String name;
-    private final List<String> messages;
-    
-    public Conversation(String code, String name, List<String> messages) {
+
+    public Conversation(String code, String name) {
         this.code = code;
         this.name = name;
-        this.messages = messages;
     }
 
     public String getCode() {
@@ -19,9 +15,5 @@ public class Conversation {
 
     public String getName() {
         return name;
-    }
-
-    public List<String> getMessages() {
-        return messages;
     }
 }

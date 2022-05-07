@@ -5,5 +5,6 @@ public enum EResponseType {
     ERROR,
     EMPTY,
     CONVERSATION,
-    CONVERSATIONS
+    CONVERSATIONS,
+    MESSAGE
 }

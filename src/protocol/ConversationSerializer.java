@@ -11,9 +11,6 @@ public class ConversationSerializer implements Serializer<Conversation> {
         
         builder.writeBytes(stringSerializer.serialize(o.getCode()));
         builder.writeBytes(stringSerializer.serialize(o.getName()));
-        builder.writeBytes(new ListSerializer<>(stringSerializer).serialize(
-            o.getMessages()
-        ));
         
         return builder.toByteArray();
     }
@@ -22,28 +19,18 @@ public class ConversationSerializer implements Serializer<Conversation> {
     public Deserialized<Conversation> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
         StringSerializer stringSerializer = new StringSerializer();
-        System.out.println(buf);
         
         Deserialized<String> rawCode = stringSerializer.deserialize(buf);
         Deserialized<String> rawName = stringSerializer.deserialize(
             buf.subList(rawCode.getSize(), buf.size())
         );
         
-        Deserialized<List<String>> rawMessages =
-            new ListSerializer<>(
-                stringSerializer
-            )
-            .deserialize(buf.subList(
-                rawCode.getSize() + rawName.getSize(), buf.size()
-            ));
-        
         return new Deserialized<>(
             new Conversation(
                 rawCode.getValue(),
-                rawName.getValue(),
-                rawMessages.getValue()
+                rawName.getValue()
             ),
-            rawCode.getSize() + rawName.getSize() + rawMessages.getSize()
+            rawCode.getSize() + rawName.getSize()
         );
     }
 }

@@ -12,7 +12,7 @@ public class SecretManager {
     private final Connection dbConn;
     
     public SecretManager(Connection dbConn)
-        throws SecretFormatException, SQLException {
+        throws SQLException {
         this.dbConn = dbConn;
         
         try (Statement stmt = this.dbConn.createStatement()) {
@@ -45,10 +45,14 @@ public class SecretManager {
         throws NoSuchAlgorithmException, SQLException, AuthenticationFailureException {
         boolean result;
 
-        Pattern pattern = Pattern.compile("^[A-Za-z0-9_ ]{3,}$");
-        
-        if (!pattern.matcher(username).matches())
+        if (!Pattern.compile("[A-Za-z0-9_ ]{3,32}").matcher(username).matches())
             throw new AuthenticationFailureException("Invalid username");
+        
+        if (!Pattern.compile(".{8,}").matcher(password).matches())
+            throw new AuthenticationFailureException(
+                "Password must be at least 8 characters"
+            );
+        
         
         try (PreparedStatement stmt = this.dbConn.prepareStatement(
             "INSERT INTO secrets(username, hash) VALUES(?, ?)"
@@ -81,5 +85,21 @@ public class SecretManager {
         }
         
         return id;
+    }
+    
+    public String getUsername(int id) throws SQLException {
+        String username;
+        
+        try (PreparedStatement stmt = this.dbConn.prepareStatement(
+            "SELECT username FROM secrets WHERE id = ?"
+        )) {
+            stmt.setInt(1, id);
+            
+            ResultSet r = stmt.executeQuery();
+            
+            username = r.getString("username");
+        }
+        
+        return username;
     }
 }

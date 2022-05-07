@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import protocol.Cookie;
 import protocol.ProtocolFormatException;
 import java.sql.SQLException;
+import java.util.List;
 
 public class AuthenticationManager {
     private final Set<UserSession> sessions;
@@ -58,5 +59,17 @@ public class AuthenticationManager {
     public void logoutSession(UserSession session) throws AuthenticationFailureException {
         if (!this.sessions.remove(session))
             throw new AuthenticationFailureException("Invalid session");
+    }
+    
+    public List<UserSession> getSessionsForConversation(int conversationId) {
+        this.reap();
+        
+        return this.sessions.stream()
+            .filter(s -> s.getConversation() == conversationId)
+            .toList();
+    }
+    
+    private void reap() {
+        this.sessions.removeIf(UserSession::isDead);
     }
 }

@@ -12,7 +12,8 @@ import java.util.stream.Collectors;
 import protocol.Conversation;
 import java.sql.ResultSet;
 import java.util.ArrayList;
-
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 public class MessageManager {
     private Connection dbConn;
@@ -20,7 +21,8 @@ public class MessageManager {
     private final static char[] CODE_SET =
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         .toCharArray();
-    private final static String SQL_ARRAY_SEPARATOR = "|";
+    private final static String SQL_ARRAY_SEPARATOR = ",";
+    private final static int DEFAULT_RETRIEVE_LIMIT = 15;
     
     private static String generateCode() {
         SecureRandom rng = new SecureRandom();
@@ -33,20 +35,36 @@ public class MessageManager {
     }
     
     private static <T> String listToSQLList(List<T> list) {
-        return list.stream()
-            .map(t -> t.toString().getBytes())
-            .map(Base64.getEncoder()::encodeToString)
-            .map(s -> SQL_ARRAY_SEPARATOR + s + SQL_ARRAY_SEPARATOR)
-            .collect(Collectors.joining(","));
+        return 
+            list.stream()
+                .map(t -> t.toString().getBytes())
+                .map(Base64.getEncoder()::encodeToString)
+                .collect(
+                    Collectors.joining(
+                        SQL_ARRAY_SEPARATOR,
+                        SQL_ARRAY_SEPARATOR,
+                        SQL_ARRAY_SEPARATOR
+                    )
+                );
     }
     
-    private static <T> List<T> SQLListToList(String sqlList) {
-        return Arrays.stream(sqlList.split(","))
-            .map(s -> s.substring(1, s.length() - 1))
+    private static <T> List<T> SQLListToList(
+        String sqlList,
+        Function<String, T> transformer
+    ) {
+        final String sqlListInner = sqlList.substring(
+            SQL_ARRAY_SEPARATOR.length(),
+            sqlList.length() - SQL_ARRAY_SEPARATOR.length()
+        );
+        
+        if (sqlListInner.length() == 0)
+            return new ArrayList<>();
+        
+        return Arrays.stream(sqlListInner.split(SQL_ARRAY_SEPARATOR))
             .map(Base64.getDecoder()::decode)
-            .map(t -> new String(t))
-            .map(t -> (T)t)
-            .toList();
+            .map(String::new)
+            .map(transformer::apply)
+            .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private static <T> String generateSQLListFilter(T item) {
@@ -65,6 +83,7 @@ public class MessageManager {
             stmt.execute(
                 "CREATE TABLE IF NOT EXISTS messages (" +
                     "id INTEGER PRIMARY KEY," +
+                    "timestamp INTEGER NOT NULL," +
                     "conversation_id INTEGER NOT NULL," +
                     "author_id INTEGER NOT NULL," +
                     "message TEXT NOT NULL" +
@@ -83,8 +102,13 @@ public class MessageManager {
         }
     }
     
-    public Conversation createConversation(int ownerId, String name) throws SQLException {
+    public Conversation createConversation(int ownerId, String name) throws SQLException, GenericMessageException {
         String code;
+        
+        if (!Pattern.compile("[ -~]{3,32}").matcher(name).matches())
+            throw new GenericMessageException(
+                "Invalid conversation name"
+            );
         
         try (PreparedStatement stmt = this.dbConn.prepareStatement(
             "INSERT INTO conversations(code, name, owner_id, member_ids) " +
@@ -105,7 +129,7 @@ public class MessageManager {
             }
         }
         
-        return new Conversation(code, name, List.of());
+        return new Conversation(code, name);
     }
     
     public List<Conversation> listConversations(int userId) throws SQLException {
@@ -125,12 +149,111 @@ public class MessageManager {
                 conversations.add(
                     new Conversation(
                         result.getString("code"),
-                        result.getString("name"),
-                        List.of()
+                        result.getString("name")
                     )
                 );
         }
         
         return conversations;
+    }
+    
+    public List<InternalMessage> getLatestMessages(
+        int conversationId,
+        int limit
+    ) throws SQLException {
+        List<InternalMessage> latestMessages = new ArrayList<>(limit);
+        
+        try (PreparedStatement stmt = this.dbConn.prepareStatement(
+            "SELECT timestamp, author_id, message FROM messages " +
+                "WHERE conversation_id = ? " +
+                "ORDER BY timestamp DESC LIMIT ?"
+        )) {
+            stmt.setInt(1, conversationId);
+            stmt.setInt(2, limit);
+            
+            ResultSet result = stmt.executeQuery();
+            
+            while (result.next())
+                latestMessages.add(
+                    new InternalMessage(
+                        result.getString("message"),
+                        result.getInt("author_id"),
+                        result.getLong("timestamp")
+                    )
+                );
+        }
+        
+        return latestMessages;
+    }
+    
+    public List<InternalMessage> getLatestMessages(int conversationId) throws SQLException {
+        return this.getLatestMessages(conversationId, DEFAULT_RETRIEVE_LIMIT);
+    }
+    
+    public Integer joinConversation(int userId, String code)
+        throws SQLException {
+        Integer conversationId = null, ownerId = null;
+        List<Integer> members = null;
+
+        try (PreparedStatement stmt = this.dbConn.prepareStatement(
+            "SELECT id, owner_id, member_ids FROM conversations WHERE code = ?"
+        )) {
+            stmt.setString(1, code);
+            
+            ResultSet r = stmt.executeQuery();
+            
+            if (r.next()) {
+                ownerId = r.getInt("owner_id");
+                conversationId = r.getInt("id");
+                members = SQLListToList(r.getString("member_ids"), Integer::valueOf);
+            }
+        }
+        
+        if (conversationId == null || members == null || ownerId == null)
+            return null;
+        
+        if (members.contains(userId) || ownerId == userId)
+            return conversationId;        
+        
+        members.add(userId);
+        
+        try (PreparedStatement stmt = this.dbConn.prepareStatement(
+            "UPDATE conversations SET member_ids = ? WHERE id = ?"
+        )) {
+            stmt.setString(1, listToSQLList(members));
+            stmt.setInt(2, conversationId);
+            
+            stmt.execute();
+        }
+        
+        return conversationId;
+    }
+    
+    public InternalMessage sendMessage(
+        int senderId,
+        int conversationId,
+        String content
+    ) throws SQLException, GenericMessageException {
+        final long timestamp = System.currentTimeMillis();
+        
+        if (!Pattern.compile("[ -~]{1,280}").matcher(content).matches())
+            throw new GenericMessageException(
+                "Invalid message"
+            );
+        
+        try (PreparedStatement stmt = this.dbConn.prepareStatement(
+            "INSERT INTO messages(" +
+                "timestamp, conversation_id, author_id, message" +
+            ") VALUES (?, ?, ?, ?)"
+        )) {
+            stmt.setLong(1, timestamp);
+            stmt.setInt(2, conversationId);
+            stmt.setInt(3, senderId);
+            stmt.setString(4, content);
+
+            stmt.execute();
+        }
+        
+        return new InternalMessage(content, senderId, timestamp);
     }
 }

@@ -1,20 +1,21 @@
 package client;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.util.Date;
 import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
+import java.util.function.Function;
+import org.fusesource.jansi.Ansi;
+import org.fusesource.jansi.AnsiConsole;
 import protocol.Conversation;
+import protocol.Message;
 import protocol.ProtocolFormatException;
 
 
 public class ClientFrontend {
     private static Scanner sc;
-    
-    private static void clearScreen() {
-        System.out.print("\033[H\033[2J");  
-        System.out.flush();  
-    }
     
     private static void printError(Exception ex) {
         if (ServerErrorException.class.isInstance(ex))
@@ -29,11 +30,18 @@ public class ClientFrontend {
             System.err.println("error: Unknown error");
     }
     
+    private static void immediateFlush(Object x) {
+        System.out.print(x);
+        System.out.flush();
+    }
+    
     private static Client connectClient() {
         String host;
         int port;
         Client client;
         
+        immediateFlush(Ansi.ansi().eraseScreen().cursor(0, 0));
+
         System.out.print("Enter server hostname: ");
         host = sc.nextLine();
         
@@ -138,11 +146,82 @@ public class ClientFrontend {
         } while (true);
     }
     
+    private static void startChat(Client client)
+        throws ProtocolFormatException, IOException {
+        Integer prevMessagesHash = null;
+        Function<String, Ansi> promptSupplier = (lastServerError) -> Ansi.ansi()
+            .eraseScreen()
+            .cursor(client.getMaxMessages() + 2, 0)
+            .fgBrightRed()
+            .a(lastServerError)
+            .fgDefault()
+            .newline()
+            .a("Type /exit to exit")
+            .newline()
+            .a("Message: ");
+        
+        immediateFlush(promptSupplier.apply(""));
+        
+        do {
+            if (System.in.available() > 0) {
+                String input = sc.nextLine();
+                
+                if ("/exit".equals(input))
+                    break;
+                
+                try {
+                    client.sendMessage(input);
+                    immediateFlush(promptSupplier.apply(""));
+                } catch (ServerErrorException ex) {
+                    immediateFlush(promptSupplier.apply(ex.getMessage()));
+                }
+                
+                prevMessagesHash = null;
+            }
+            
+            if (
+                prevMessagesHash == null ||
+                prevMessagesHash != client.getMessagesHashCode()
+            ) {
+                prevMessagesHash = client.getMessagesHashCode();
+    
+                final Message[] messages = client.getMessagesSnapshot();
+                
+                immediateFlush(
+                    Ansi.ansi()
+                        .saveCursorPosition()
+                        .cursor(
+                            client.getMaxMessages() + 1,
+                            0
+                        )
+                        .eraseScreen(Ansi.Erase.BACKWARD)
+                        .cursor(
+                            client.getMaxMessages() - messages.length,
+                            0
+                        )
+                );
+
+                for (Message message : messages)
+                    System.out.printf(
+                        "[%s] %s: %s%n",
+                        DateFormat.getDateTimeInstance().format(
+                            new Date(message.getTimestamp())
+                        ),
+                        message.getAuthor(),
+                        message.getMessage()
+                    );
+                
+                immediateFlush(
+                    Ansi.ansi().restoreCursorPosition()
+                );
+            }
+        } while (true);
+    }
     
     public static void main(String[] args) {
         sc = new Scanner(System.in);
 
-        clearScreen();
+        AnsiConsole.systemInstall();
 
         Client client = connectClient();
         
@@ -150,7 +229,8 @@ public class ClientFrontend {
             return;
         
         while (true) {
-            clearScreen();
+            immediateFlush(Ansi.ansi().eraseScreen().cursor(0, 0));
+
             switch (promptMenu()) {
                 case CHANGE_PASSWD: {
                     
@@ -161,13 +241,6 @@ public class ClientFrontend {
                         System.out.print("Conversation name: ");
                         Conversation conv = client.createConversation(
                             sc.nextLine()
-                        );
-                        
-                        System.out.printf(
-                            "Successfully created conversation " +
-                            "'%s' with code '%s'%n",
-                            conv.getName(),
-                            conv.getCode()
                         );
                     } catch (
                         ServerErrorException |
@@ -180,6 +253,21 @@ public class ClientFrontend {
                     break;
                 }
                 case JOIN_CONVO: {
+                    try {
+                        System.out.print("Conversation code: ");
+                        client.joinConversation(
+                            sc.nextLine()
+                        );
+                        
+                        startChat(client);
+                    } catch (
+                        ServerErrorException |
+                        IOException |
+                        ProtocolFormatException ex
+                    ) {
+                        printError(ex);
+                    }
+                    
                     break;
                 }
                 case LIST_CONVO: {
@@ -195,6 +283,9 @@ public class ClientFrontend {
                                 c.getCode()
                             )
                         );
+                        
+                        System.out.print("Press enter to continue: ");
+                        sc.nextLine();
                     } catch (
                         ServerErrorException |
                         IOException |

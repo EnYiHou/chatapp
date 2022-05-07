@@ -7,6 +7,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
+import java.util.List;
 import protocol.Conversation;
 import protocol.ConversationSerializer;
 import protocol.CookieSerializer;
@@ -16,6 +17,8 @@ import protocol.Deserialized;
 import protocol.EResponseType;
 import protocol.IntegerSerializer;
 import protocol.ListSerializer;
+import protocol.Message;
+import protocol.MessageSerializer;
 import protocol.ProtocolFormatException;
 import protocol.Request;
 import protocol.RequestSerializer;
@@ -45,13 +48,11 @@ public class ConnectionHandler implements Runnable {
     
     @Override
     public void run() {
-        Response response = null;     
+        Response response = null;
         boolean shallClose = true;
         
         try {
             try {
-                response = new Response(EResponseType.ERROR, new StringSerializer().serialize("unimplemented"));
-
                 InputStream stream = this.conn.getInputStream();
                 IntegerSerializer serializer = new IntegerSerializer();
                 Deserialized<Integer> announcedSize = serializer.deserialize(
@@ -73,9 +74,9 @@ public class ConnectionHandler implements Runnable {
                                 this.secretManager.getUserId(
                                     sess.getUsername()
                                 ),
-                                new ConversationSerializer().deserialize(
+                                new StringSerializer().deserialize(
                                     req.getBody()
-                                ).getValue().getName()
+                                ).getValue()
                             );
 
                         response = new Response(
@@ -89,7 +90,48 @@ public class ConnectionHandler implements Runnable {
                         UserSession sess = this.authManager.loginCookie(
                             req.getCookie()
                         );
+                        Integer id;
 
+                        if (
+                            (id = this.messageManager.joinConversation(
+                                this.secretManager.getUserId(
+                                    sess.getUsername()
+                                ),
+                                new StringSerializer().deserialize(
+                                    req.getBody()
+                                ).getValue()
+                            )) == null
+                        ) {
+                            throw new AuthenticationFailureException(
+                                "Invalid code"
+                            );
+                        }
+
+                        sess.setConversation(id);
+                        List<InternalMessage> internalMessages =
+                            this.messageManager.getLatestMessages(id);
+
+                        for (InternalMessage i : internalMessages)
+                            sess.sendNotification(
+                                new Response(
+                                    EResponseType.MESSAGE,
+                                    new MessageSerializer().serialize(
+                                        new Message(
+                                            i.getMessage(),
+                                            this.secretManager.getUsername(
+                                                i.getAuthorId()
+                                            ),
+                                            i.getTimestamp()
+                                        )   
+                                    )
+                                )
+                            );
+                        
+                        response = new Response(
+                            EResponseType.EMPTY,
+                            new byte[0]
+                        );
+                        
                         break;
                     }
                     case LIST_CONVO: {
@@ -168,6 +210,40 @@ public class ConnectionHandler implements Runnable {
                         UserSession sess = this.authManager.loginCookie(
                             req.getCookie()
                         );
+                        
+                        InternalMessage mess = this.messageManager.sendMessage(
+                            this.secretManager.getUserId(sess.getUsername()),
+                            sess.getConversation(),
+                            new StringSerializer().deserialize(
+                                req.getBody()
+                            ).getValue()
+                        );
+                        
+                        List<UserSession> sessions =
+                            this.authManager.getSessionsForConversation(
+                                sess.getConversation()
+                            );
+
+                        for (UserSession i : sessions)
+                            i.sendNotification(
+                                new Response(
+                                    EResponseType.MESSAGE,
+                                    new MessageSerializer().serialize(
+                                        new Message(
+                                            mess.getMessage(),
+                                            this.secretManager.getUsername(
+                                                mess.getAuthorId()
+                                            ),
+                                            mess.getTimestamp()
+                                        )   
+                                    )
+                                )
+                            );
+                        
+                        response = new Response(
+                            EResponseType.EMPTY,
+                            new byte[0]
+                        );
 
                         break;
                     }
@@ -191,18 +267,20 @@ public class ConnectionHandler implements Runnable {
                         "invalid message: " + ex.getMessage()
                     )
                 );
-            } catch (AuthenticationFailureException ex) {
+            } catch (AuthenticationFailureException | GenericMessageException ex) {
                 response = new Response(
                     EResponseType.ERROR,
                     new StringSerializer().serialize(ex.getMessage())
-                );    
-            } catch (IOException | NoSuchAlgorithmException | SQLException ex) {
+                );
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                
                 response = new Response(
                     EResponseType.ERROR,
                     new StringSerializer().serialize("internal error")
                 );
             } finally {
-                byte[] serializedResponse =  new ResponseSerializer().serialize(
+                byte[] serializedResponse = new ResponseSerializer().serialize(
                     response
                 );
                 

@@ -15,14 +15,14 @@ public class Server {
     private final MessageManager messageManager;
     private SecretManager secretManager;
     
-    public Server() throws IOException, SecretFormatException,
+    public Server() throws IOException,
             HashInvalidLengthException,
             NoSuchAlgorithmException, SQLException {
         this(DEFAULT_DB_PATH);
     }
     
     public Server(String dbPath)
-        throws SecretFormatException,
+        throws
             HashInvalidLengthException, IOException, NoSuchAlgorithmException,
             SQLException {
         this.dbConn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);

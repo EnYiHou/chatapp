@@ -3,7 +3,7 @@ package client;
 public enum MenuItem {
     CREATE_CONVO("Create conversation"),
     JOIN_CONVO("Join conversation"),
-    LIST_CONVO("List conversation"),
+    LIST_CONVO("List conversations"),
     CHANGE_PASSWD("Change password"),
     LOGOUT("Logout");
     
