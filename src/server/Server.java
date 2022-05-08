@@ -39,6 +39,7 @@ public class Server {
         this.listener = new ServerListenerThread(
             PORT, this.secretManager, this.authManager, this.messageManager
         );
+        
         this.listener.start();
     }
     

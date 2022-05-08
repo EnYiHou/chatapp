@@ -11,6 +11,13 @@ import java.util.regex.Pattern;
 public class SecretManager {
     private final Connection dbConn;
     
+    private static void validatePassword(String password) throws AuthenticationFailureException {
+        if (!Pattern.compile(".{8,}").matcher(password).matches())
+            throw new AuthenticationFailureException(
+                "Password must be at least 8 characters"
+            );
+    }
+    
     public SecretManager(Connection dbConn)
         throws SQLException {
         this.dbConn = dbConn;
@@ -48,11 +55,7 @@ public class SecretManager {
         if (!Pattern.compile("[A-Za-z0-9_ ]{3,32}").matcher(username).matches())
             throw new AuthenticationFailureException("Invalid username");
         
-        if (!Pattern.compile(".{8,}").matcher(password).matches())
-            throw new AuthenticationFailureException(
-                "Password must be at least 8 characters"
-            );
-        
+        validatePassword(password);
         
         try (PreparedStatement stmt = this.dbConn.prepareStatement(
             "INSERT INTO secrets(username, hash) VALUES(?, ?)"
@@ -101,5 +104,18 @@ public class SecretManager {
         }
         
         return username;
+    }
+    
+    public void changePassword(int id, String newPassword) throws AuthenticationFailureException, SQLException, NoSuchAlgorithmException {
+        validatePassword(newPassword);
+        
+        try (PreparedStatement stmt = this.dbConn.prepareStatement(
+            "UPDATE secrets SET hash = ? WHERE id = ?"
+        )) {
+            stmt.setString(1, new Hash(newPassword).hex());
+            stmt.setInt(2, id);
+            
+            stmt.execute();
+        }
     }
 }

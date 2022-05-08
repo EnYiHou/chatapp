@@ -235,6 +235,18 @@ public class ClientFrontend {
 
             switch (promptMenu()) {
                 case CHANGE_PASSWD: {
+                    try {
+                        System.out.print("New password: ");
+                        client.changePassword(
+                            sc.nextLine()
+                        );
+                    } catch (
+                        ServerErrorException |
+                        IOException |
+                        ProtocolFormatException ex
+                    ) {
+                        printError(ex);
+                    }
                     
                     break;
                 }

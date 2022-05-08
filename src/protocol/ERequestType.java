@@ -7,5 +7,6 @@ public enum ERequestType {
     JOIN_CONVO,
     CREATE_CONVO,
     LIST_CONVO,
-    LOGOUT
+    LOGOUT,
+    CHANGE_PASSWD
 }

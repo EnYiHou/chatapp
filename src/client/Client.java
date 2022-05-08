@@ -170,6 +170,17 @@ public class Client {
         );
     }
     
+    public void changePassword(String newPassword) throws ProtocolFormatException, IOException, ServerErrorException {
+        this.request(
+            new Request(
+                ERequestType.CHANGE_PASSWD,
+                this.runnable.getCookie(),
+                new StringSerializer().serialize(newPassword)
+            ),
+            EResponseType.EMPTY
+        );
+    }
+    
     public Message[] getMessagesSnapshot() {
         Message[] snapshot = new Message[this.messages.size()];
         

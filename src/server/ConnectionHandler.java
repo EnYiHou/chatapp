@@ -5,8 +5,6 @@ import java.io.InputStream;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.security.NoSuchAlgorithmException;
-import java.sql.SQLException;
 import java.util.List;
 import protocol.Conversation;
 import protocol.ConversationSerializer;
@@ -245,6 +243,25 @@ public class ConnectionHandler implements Runnable {
                             new byte[0]
                         );
 
+                        break;
+                    }
+                    case CHANGE_PASSWD: {
+                        UserSession sess = this.authManager.loginCookie(
+                            req.getCookie()
+                        );
+                        
+                        this.secretManager.changePassword(
+                            this.secretManager.getUserId(sess.getUsername()),
+                            new StringSerializer().deserialize(
+                                req.getBody()
+                            ).getValue()
+                        );
+                        
+                        response = new Response(
+                            EResponseType.EMPTY,
+                            new byte[0]
+                        );
+                                                
                         break;
                     }
                     default:
