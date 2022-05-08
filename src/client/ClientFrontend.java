@@ -17,17 +17,17 @@ import protocol.ProtocolFormatException;
 public class ClientFrontend {
     private static Scanner sc;
     
-    private static void printError(Exception ex) {
+    private static String formatException(Exception ex) {
         if (ServerErrorException.class.isInstance(ex))
-            System.err.println(
+            return String.format(
                 "error: server responded with: " + ex.getMessage()
             );
         else if (IOException.class.isInstance(ex))
-            System.err.println("error: connection failed");
+            return "error: connection failed";
         else if (ProtocolFormatException.class.isInstance(ex))
-            System.err.println("error: " + ex.getMessage());
+            return String.format("error: " + ex.getMessage());
         else
-            System.err.println("error: Unknown error");
+            return "error: Unknown error";
     }
     
     private static void immediateFlush(Object x) {
@@ -110,7 +110,12 @@ public class ClientFrontend {
                 IOException |
                 ProtocolFormatException ex
             ) {
-                printError(ex);
+                System.out.println(
+                    Ansi.ansi()
+                        .fgBrightRed()
+                        .a(formatException(ex))
+                        .fgDefault()
+                );
                 
                 if (!ServerErrorException.class.isInstance(ex))
                     return null;
@@ -120,13 +125,27 @@ public class ClientFrontend {
         return client;
     }
     
-    private static MenuItem promptMenu() {
-        System.out.println("What do you want to do?");
+    private static MenuItem promptMenu(String lastError) {
+        immediateFlush(Ansi.ansi().eraseScreen().cursor(0, 0));
+
+        System.out.println("ChatApp");
         for (MenuItem i : MenuItem.values())
             System.out.printf("\t[%d]: %s%n", i.ordinal(), i.getMessage());
         
+        immediateFlush(Ansi.ansi().saveCursorPosition());
+        
         do {
-            System.out.print("Select an option: ");
+            immediateFlush(
+                Ansi.ansi()
+                    .restoreCursorPosition()
+                    .eraseScreen(Ansi.Erase.FORWARD)
+                    .newline()
+                    .fgBrightRed()
+                    .a(lastError)
+                    .fgDefault()
+                    .newline()
+                    .a("Select an option: ")
+            );
             
             try {
                 int option = sc.nextInt();
@@ -136,7 +155,7 @@ public class ClientFrontend {
                 return item;
             } catch (InputMismatchException | ArrayIndexOutOfBoundsException ex)
             {
-                System.err.printf(
+                lastError = String.format(
                     "You must enter a value between 0 and %d%n",
                     MenuItem.values().length - 1
                 );
@@ -227,13 +246,17 @@ public class ClientFrontend {
 
         Client client = connectClient();
         
+        String lastError = "";
+        
         if (client == null)
             return;
         
         while (true) {
-            immediateFlush(Ansi.ansi().eraseScreen().cursor(0, 0));
-
-            switch (promptMenu()) {
+            MenuItem selection = promptMenu(lastError);
+            
+            lastError = "";
+            
+            switch (selection) {
                 case CHANGE_PASSWD: {
                     try {
                         System.out.print("New password: ");
@@ -245,7 +268,7 @@ public class ClientFrontend {
                         IOException |
                         ProtocolFormatException ex
                     ) {
-                        printError(ex);
+                        lastError = formatException(ex);
                     }
                     
                     break;
@@ -261,7 +284,7 @@ public class ClientFrontend {
                         IOException |
                         ProtocolFormatException ex
                     ) {
-                        printError(ex);
+                        lastError = formatException(ex);
                     }
                     
                     break;
@@ -279,7 +302,7 @@ public class ClientFrontend {
                         IOException |
                         ProtocolFormatException ex
                     ) {
-                        printError(ex);
+                        lastError = formatException(ex);
                     }
                     
                     break;
@@ -305,7 +328,7 @@ public class ClientFrontend {
                         IOException |
                         ProtocolFormatException ex
                     ) {
-                        printError(ex);
+                        lastError = formatException(ex);
                     }
                     
                     break;
@@ -318,7 +341,7 @@ public class ClientFrontend {
                         IOException |
                         ProtocolFormatException ex
                     ) {
-                        printError(ex);
+                        lastError = formatException(ex);
                     }
                     
                     return;
