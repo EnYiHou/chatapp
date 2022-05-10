@@ -1,9 +1,12 @@
 package server;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
 class Algorithms {
+
     public static <T> int binarySearch(List<T> list, T target, Comparator<T> comparator) {
         if (list.isEmpty()) {
             return -1;
@@ -44,12 +47,12 @@ class Algorithms {
 
         return 0;
     }
-    
-     public static <T> List<T> bubbleSort(List<T> list, Comparator comparator) {
-        if(list.isEmpty()){
+
+    public static <T> List<T> bubbleSort(List<T> list, Comparator comparator) {
+        if (list.isEmpty()) {
             return null;
         }
-        
+
         int size = list.size();
         int counter;
         do {
@@ -63,11 +66,46 @@ class Algorithms {
                     counter++;
                 }
             }
-        
+
             size--;
 
         } while (counter != 0);
-        
+
         return list;
     }
+
+    public static <T> List<T> selectionSort(List<T> list, Comparator<T> comparator) {
+
+        if (list.size() == 0) {
+            return null;
+        }
+
+        int indexSmallest = 0;
+        for (int i = 0; i < list.size(); i++) {
+            T smallest = list.get(i);
+            for (int j = i; j < list.size(); j++) {
+                if (comparator.compare(list.get(j), smallest) < 0) {
+                    smallest = list.get(j);
+                    indexSmallest = j;
+                }
+
+            }
+
+            list.set(indexSmallest, list.get(i));
+            list.set(i, smallest);
+
+        }
+        return list;
+
+    }
+
+    public static void main(String[] args) {
+        System.out.println(selectionSort(Arrays.asList(3, 2, 3, 76, 51, 2, 23), new Comparator<Integer>() {
+            @Override
+            public int compare(Integer o1, Integer o2) {
+                return Integer.compare(o1, o2);
+            }
+        }));
+    }
+
 }

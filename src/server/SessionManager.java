@@ -10,6 +10,7 @@ import protocol.ProtocolFormatException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class SessionManager {
     private final Set<UserSession> sessions;
@@ -75,7 +76,7 @@ public class SessionManager {
         
         return this.sessions.stream()
             .filter(s -> s.getConversation() == conversationId)
-            .toList();
+            .collect(Collectors.toList());
     }
     
     private void reap() {
