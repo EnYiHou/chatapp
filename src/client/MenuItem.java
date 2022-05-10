@@ -5,7 +5,9 @@ public enum MenuItem {
     JOIN_CONVO("Join conversation"),
     LIST_CONVO("List conversations"),
     CHANGE_PASSWD("Change password"),
-    LOGOUT("Logout");
+    LOGOUT("Logout"),
+    RECV_FILE("Receive file"),
+    SEND_FILE("Send file");
     
     private final String message;
     

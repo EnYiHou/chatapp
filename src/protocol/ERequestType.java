@@ -8,5 +8,7 @@ public enum ERequestType {
     CREATE_CONVO,
     LIST_CONVO,
     LOGOUT,
-    CHANGE_PASSWD
+    CHANGE_PASSWD,
+    RECV_FILE,
+    SEND_FILE
 }

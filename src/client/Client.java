@@ -1,14 +1,27 @@
 package client;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import protocol.BooleanSerializer;
 import protocol.Conversation;
 import protocol.ConversationSerializer;
 import protocol.ERequestType;
 import protocol.EResponseType;
+import protocol.FileAnnouncement;
+import protocol.FileAnnouncementSerializer;
 import protocol.IntegerSerializer;
 import protocol.ListSerializer;
 import protocol.Message;
@@ -17,6 +30,8 @@ import protocol.Request;
 import protocol.RequestSerializer;
 import protocol.Response;
 import protocol.ResponseSerializer;
+import protocol.SendFileAnnouncement;
+import protocol.SendFileAnnouncementSerializer;
 import protocol.StringSerializer;
 
 public class Client {
@@ -27,6 +42,7 @@ public class Client {
     private final LimitedPriorityBlockingQueue<Message> messages;
     private final int maxMessages;
     private final static int DEFAULT_MAX_MESSAGES = 15;
+    private final static int TRANSFER_BLOCK_SIZE = 2048;
     private AtomicBoolean newMessages;
 
     Client(String host, int port) {
@@ -51,37 +67,39 @@ public class Client {
     
     private Response request(Request req, EResponseType expectedResponseType)
         throws ProtocolFormatException, IOException, ServerErrorException {
-        Socket sock = new Socket(host, port);
+        Response resp;
         
-        byte[] serializedRequest = new RequestSerializer().serialize(req);
-        
-        sock.getOutputStream().write(
-            new IntegerSerializer().serialize(serializedRequest.length)
-        );
-        
-        sock.getOutputStream().write(serializedRequest);
-        
-        Response resp = new ResponseSerializer().deserialize(
-            sock.getInputStream().readNBytes(
-                new IntegerSerializer().deserialize(
-                    sock.getInputStream().readNBytes(
-                        IntegerSerializer.size()
-                    )
-                ).getValue()
-            )
-        ).getValue();
-                
-        if (resp.getType() != expectedResponseType) {
-            if (resp.getType() != EResponseType.ERROR)
-                throw new ProtocolFormatException(
-                    "Got invalid response type for LOGOUT request"
-                );
+        try (Socket sock = new Socket(this.host, this.port)) {
+            byte[] serializedRequest = new RequestSerializer().serialize(req);
             
-            throw new ServerErrorException(
-                new StringSerializer().deserialize(
-                    resp.getBody()
-                ).getValue()
+            sock.getOutputStream().write(
+                    new IntegerSerializer().serialize(serializedRequest.length)
             );
+            
+            sock.getOutputStream().write(serializedRequest);
+            
+            resp = new ResponseSerializer().deserialize(
+                    sock.getInputStream().readNBytes(
+                            new IntegerSerializer().deserialize(
+                                    sock.getInputStream().readNBytes(
+                                            IntegerSerializer.size()
+                                    )
+                            ).getValue()
+                    )
+            ).getValue();
+            
+            if (resp.getType() != expectedResponseType) {
+                if (resp.getType() != EResponseType.ERROR)
+                    throw new ProtocolFormatException(
+                            "Got invalid response type for request"
+                    );
+                
+                throw new ServerErrorException(
+                        new StringSerializer().deserialize(
+                                resp.getBody()
+                        ).getValue()
+                );
+            }
         }
         
         return resp;
@@ -170,7 +188,8 @@ public class Client {
         );
     }
     
-    public void changePassword(String newPassword) throws ProtocolFormatException, IOException, ServerErrorException {
+    public void changePassword(String newPassword)
+        throws ProtocolFormatException, IOException, ServerErrorException {
         this.request(
             new Request(
                 ERequestType.CHANGE_PASSWD,
@@ -192,7 +211,8 @@ public class Client {
         return snapshot;
     }
 
-    public void sendMessage(String input) throws ProtocolFormatException, IOException, ServerErrorException {
+    public void sendMessage(String input)
+        throws ProtocolFormatException, IOException, ServerErrorException {
         this.request(
             new Request(
                 ERequestType.SEND_MSG,
@@ -205,5 +225,197 @@ public class Client {
 
     public boolean newMessages() {
         return this.newMessages.get();
+    }
+    
+    public void receiveFile(
+        int timeout,
+        Consumer<String> transferCodeNotifier,
+        Predicate<FileAnnouncement> verifier,
+        BiConsumer<FileAnnouncement, Long> notifier
+    ) throws IOException, ProtocolFormatException, ServerErrorException {
+        try (Socket receiverSock = new Socket(host, port)) {
+            receiverSock.setSoTimeout(timeout);
+            
+            byte[] serializedRequest = new RequestSerializer().serialize(
+                new Request(
+                    ERequestType.RECV_FILE,
+                    this.runnable.getCookie(),
+                    new byte[0]
+                )
+            );
+
+            receiverSock.getOutputStream().write(
+                new IntegerSerializer().serialize(
+                    serializedRequest.length
+                )
+            );
+
+            receiverSock.getOutputStream().write(serializedRequest);
+            
+            transferCodeNotifier.accept(
+                new StringSerializer().deserialize(
+                    receiverSock.getInputStream().readNBytes(
+                        new IntegerSerializer().deserialize(
+                            receiverSock.getInputStream().readNBytes(
+                                IntegerSerializer.size()
+                            )
+                        ).getValue()
+                    )
+                ).getValue()
+            );
+            
+            FileAnnouncement senderAnnouncement;
+            boolean senderValid;
+            
+            do {
+                try {
+                    senderAnnouncement =
+                        new FileAnnouncementSerializer().deserialize(
+                            receiverSock.getInputStream().readNBytes(
+                                new IntegerSerializer().deserialize(
+                                    receiverSock.getInputStream().readNBytes(
+                                        IntegerSerializer.size()
+                                    )
+                                ).getValue()
+                            )
+                        ).getValue();
+                } catch (SocketTimeoutException ex) {
+                    return;
+                }
+
+                senderValid = verifier.test(senderAnnouncement);
+
+                byte[] serializedValidation = new BooleanSerializer().serialize(
+                    senderValid
+                );
+
+                receiverSock.getOutputStream().write(
+                    new IntegerSerializer().serialize(
+                        serializedValidation.length
+                    )
+                );
+
+                receiverSock.getOutputStream().write(serializedValidation);
+            } while (!senderValid);
+            
+            String sanitizedFileName = Paths
+                .get(senderAnnouncement.getFileName())
+                .getFileName()
+                .toString();
+            
+            try (
+                FileOutputStream fp = new FileOutputStream(sanitizedFileName)
+            ) {
+                long written = 0;
+                while (written < senderAnnouncement.getSize()) {
+                    byte[] block = receiverSock.getInputStream().readNBytes(
+                        (int)Math.min(
+                            senderAnnouncement.getSize() - written,
+                            TRANSFER_BLOCK_SIZE
+                        )
+                    );
+                    
+                    fp.write(block);
+                    
+                    written += block.length;
+                }
+            }
+            
+            Response resp = new ResponseSerializer().deserialize(
+                receiverSock.getInputStream().readNBytes(
+                    new IntegerSerializer().deserialize(
+                        receiverSock.getInputStream().readNBytes(
+                            IntegerSerializer.size()
+                        )
+                    ).getValue()
+                )
+            ).getValue();
+            
+            if (resp.getType() != EResponseType.EMPTY) {
+                if (resp.getType() != EResponseType.ERROR)
+                    throw new ProtocolFormatException(
+                        "Got invalid response type for request"
+                    );
+                
+                throw new ServerErrorException(
+                    new StringSerializer().deserialize(
+                        resp.getBody()
+                    ).getValue()
+                );
+            }
+        }
+    }
+    
+    public void sendFile(String transferCode, String path)
+        throws IOException, ProtocolFormatException, FileTransferException, ServerErrorException {
+        final long fileSize = new File(path).length();
+        
+        try (
+            Socket senderSock = new Socket(host, port);
+            FileInputStream fp = new FileInputStream(path)
+        ) {
+            String sanitizedFileName = Paths
+                .get(path)
+                .getFileName()
+                .toString();
+            
+            byte[] serializedRequest = new RequestSerializer().serialize(
+                new Request(
+                    ERequestType.SEND_FILE,
+                    this.runnable.getCookie(),
+                    new SendFileAnnouncementSerializer().serialize(
+                        new SendFileAnnouncement(
+                            transferCode,
+                            sanitizedFileName,
+                            fileSize
+                        )
+                    )
+                )
+            );
+
+            senderSock.getOutputStream().write(
+                new IntegerSerializer().serialize(
+                    serializedRequest.length
+                )
+            );
+            
+            senderSock.getOutputStream().write(serializedRequest);
+            
+            try {
+                senderSock.getOutputStream().write(
+                    new IntegerSerializer().serialize(TRANSFER_BLOCK_SIZE)
+                );
+                
+                while (fp.available() > 0)
+                    senderSock.getOutputStream().write(
+                        fp.readNBytes(TRANSFER_BLOCK_SIZE)
+                    );
+            } catch (IOException ex) {
+                throw new FileTransferException("Transfer code rejected");
+            }
+            
+            Response resp = new ResponseSerializer().deserialize(
+                senderSock.getInputStream().readNBytes(
+                    new IntegerSerializer().deserialize(
+                        senderSock.getInputStream().readNBytes(
+                            IntegerSerializer.size()
+                        )
+                    ).getValue()
+                )
+            ).getValue();
+            
+            if (resp.getType() != EResponseType.EMPTY) {
+                if (resp.getType() != EResponseType.ERROR)
+                    throw new ProtocolFormatException(
+                        "Got invalid response type for request"
+                    );
+                
+                throw new ServerErrorException(
+                    new StringSerializer().deserialize(
+                        resp.getBody()
+                    ).getValue()
+                );
+            }
+        }
     }
 }

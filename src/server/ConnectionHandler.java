@@ -6,6 +6,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.List;
+import protocol.BooleanSerializer;
 import protocol.Conversation;
 import protocol.ConversationSerializer;
 import protocol.CookieSerializer;
@@ -13,6 +14,8 @@ import protocol.CredentialsBody;
 import protocol.CredentialsBodySerializer;
 import protocol.Deserialized;
 import protocol.EResponseType;
+import protocol.FileAnnouncement;
+import protocol.FileAnnouncementSerializer;
 import protocol.IntegerSerializer;
 import protocol.ListSerializer;
 import protocol.Message;
@@ -22,26 +25,27 @@ import protocol.Request;
 import protocol.RequestSerializer;
 import protocol.Response;
 import protocol.ResponseSerializer;
+import protocol.SendFileAnnouncement;
+import protocol.SendFileAnnouncementSerializer;
 import protocol.StringSerializer;
 
 public class ConnectionHandler implements Runnable {
     private final Socket conn;
-    private final AuthenticationManager authManager;
+    private final SessionManager sessManager;
     private final MessageManager messageManager;
     private final SecretManager secretManager;
     
     ConnectionHandler(
         Socket conn,
         SecretManager secretManager,
-        AuthenticationManager authManager,
+        SessionManager authManager,
         MessageManager messageManager
     )
         throws SocketException {
         this.conn = conn;
         this.secretManager = secretManager;
-        this.authManager = authManager;
+        this.sessManager = authManager;
         this.messageManager = messageManager;
-        this.conn.setSoTimeout(10000);
     }
     
     @Override
@@ -63,7 +67,7 @@ public class ConnectionHandler implements Runnable {
 
                 switch (req.getType()) {
                     case CREATE_CONVO: {
-                        UserSession sess = this.authManager.loginCookie(
+                        UserSession sess = this.sessManager.loginCookie(
                             req.getCookie()
                         );
                         
@@ -85,7 +89,7 @@ public class ConnectionHandler implements Runnable {
                         break;
                     }
                     case JOIN_CONVO: {
-                        UserSession sess = this.authManager.loginCookie(
+                        UserSession sess = this.sessManager.loginCookie(
                             req.getCookie()
                         );
                         Integer id;
@@ -133,7 +137,7 @@ public class ConnectionHandler implements Runnable {
                         break;
                     }
                     case LIST_CONVO: {
-                        UserSession sess = this.authManager.loginCookie(
+                        UserSession sess = this.sessManager.loginCookie(
                             req.getCookie()
                         );
 
@@ -157,7 +161,7 @@ public class ConnectionHandler implements Runnable {
                             new CredentialsBodySerializer()
                                 .deserialize(req.getBody()).getValue();
 
-                        UserSession sess = this.authManager.login(
+                        UserSession sess = this.sessManager.login(
                             loginReq.getUsername(),
                             loginReq.getPassword(),
                             this.conn
@@ -176,7 +180,7 @@ public class ConnectionHandler implements Runnable {
                             new CredentialsBodySerializer()
                                 .deserialize(req.getBody()).getValue();
                         
-                        UserSession sess = this.authManager.signUp(
+                        UserSession sess = this.sessManager.signUp(
                             loginReq.getUsername(),
                             loginReq.getPassword(),
                             this.conn
@@ -191,11 +195,11 @@ public class ConnectionHandler implements Runnable {
                         break;
                     }
                     case LOGOUT: {
-                        UserSession sess = this.authManager.loginCookie(
+                        UserSession sess = this.sessManager.loginCookie(
                             req.getCookie()
                         );
                         
-                        this.authManager.logoutSession(sess);
+                        this.sessManager.logoutSession(sess);
                         
                         response = new Response(
                             EResponseType.EMPTY,
@@ -205,7 +209,7 @@ public class ConnectionHandler implements Runnable {
                         break;
                     }
                     case SEND_MSG: {
-                        UserSession sess = this.authManager.loginCookie(
+                        UserSession sess = this.sessManager.loginCookie(
                             req.getCookie()
                         );
                         
@@ -218,7 +222,7 @@ public class ConnectionHandler implements Runnable {
                         );
                         
                         List<UserSession> sessions =
-                            this.authManager.getSessionsForConversation(
+                            this.sessManager.getSessionsForConversation(
                                 sess.getConversation()
                             );
 
@@ -246,7 +250,7 @@ public class ConnectionHandler implements Runnable {
                         break;
                     }
                     case CHANGE_PASSWD: {
-                        UserSession sess = this.authManager.loginCookie(
+                        UserSession sess = this.sessManager.loginCookie(
                             req.getCookie()
                         );
                         
@@ -262,6 +266,125 @@ public class ConnectionHandler implements Runnable {
                             new byte[0]
                         );
                                                 
+                        break;
+                    }
+                    case RECV_FILE: {
+                        this.sessManager.loginCookie(
+                            req.getCookie()
+                        );
+                        
+                        final String transferCode =
+                            this.sessManager.createTransfer(
+                                conn
+                            );
+                        
+                        byte[] serializedCode =
+                            new StringSerializer().serialize(
+                                transferCode
+                            );
+                        
+                        this.conn.getOutputStream().write(
+                            new IntegerSerializer().serialize(
+                                serializedCode.length
+                            )
+                        );
+                        
+                        this.conn.getOutputStream().write(serializedCode);
+                        
+                        while (!this.conn.isClosed())
+                            Thread.sleep(200);
+                        
+                        this.sessManager.stopTransfer(transferCode);
+                        
+                        response = new Response(
+                            EResponseType.EMPTY,
+                            new byte[0]
+                        );
+                        
+                        break;
+                    }
+                    case SEND_FILE: {
+                        UserSession sess = this.sessManager.loginCookie(
+                            req.getCookie()
+                        );
+                        
+                        SendFileAnnouncement announcement =
+                            new SendFileAnnouncementSerializer().deserialize(
+                                req.getBody()
+                            ).getValue();
+                        
+                        Socket targetConn = this.sessManager.getTransfer(
+                            announcement.getTransferCode()
+                        );
+                        
+                        if (targetConn == null)
+                            throw new GenericMessageException(
+                                "Invalid code"
+                            );
+                        
+                        final byte[] serializedFileAnnouncement =
+                            new FileAnnouncementSerializer().serialize(
+                                new FileAnnouncement(
+                                    sess.getUsername(),
+                                    announcement.getFileName(),
+                                    announcement.getSize()
+                                )
+                            );
+                        
+                        targetConn.getOutputStream().write(
+                            new IntegerSerializer().serialize(
+                                serializedFileAnnouncement.length
+                            )
+                        );
+                        
+                        targetConn.getOutputStream().write(
+                            serializedFileAnnouncement
+                        );
+                        
+                        if (
+                            !new BooleanSerializer().deserialize(
+                                targetConn.getInputStream().readNBytes(
+                                    new IntegerSerializer().deserialize(
+                                        targetConn.getInputStream().readNBytes(
+                                            IntegerSerializer.size()
+                                        )
+                                    ).getValue()
+                                )
+                            ).getValue()
+                        ) {
+                            throw new GenericMessageException(
+                                "Connection refused"
+                            );
+                        }
+                        
+                        final int blockSize =
+                            new IntegerSerializer().deserialize(
+                                this.conn.getInputStream().readNBytes(
+                                    IntegerSerializer.size()
+                                )
+                            ).getValue();
+                        
+                        for (long i = 0; i < announcement.getSize();) {
+                            byte[] block =
+                                this.conn.getInputStream().readNBytes(
+                                    (int)Math.min(
+                                        blockSize,
+                                        announcement.getSize() - i
+                                    )
+                                );
+                            
+                            targetConn.getOutputStream().write(block);
+                            
+                            i += block.length;
+                        }
+                        
+                        targetConn.close();
+                        
+                        response = new Response(
+                            EResponseType.EMPTY,
+                            new byte[0]
+                        );
+                        
                         break;
                     }
                     default:

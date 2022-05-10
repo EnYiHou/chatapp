@@ -239,7 +239,7 @@ public class ClientFrontend {
         } while (true);
     }
     
-    public static void main(String[] args) {
+    public static void main(String[] args) throws FileTransferException {
         sc = new Scanner(System.in);
 
         AnsiConsole.systemInstall();
@@ -345,6 +345,93 @@ public class ClientFrontend {
                     }
                     
                     return;
+                }
+                case RECV_FILE: {
+                    try {
+                        immediateFlush(Ansi.ansi().eraseScreen());
+                        
+                        client.receiveFile(
+                            0,
+                            (s) -> immediateFlush(
+                                Ansi.ansi()
+                                    .cursor(0, 0)
+                                    .a("Transfer code: ")
+                                    .a(s)
+                            ),
+                            (announcement) -> {
+                                immediateFlush(
+                                    Ansi.ansi()
+                                        .cursor(2, 0)
+                                        .a("User ")
+                                        .a(announcement.getSender())
+                                        .a(" is trying to send you file '")
+                                        .a(announcement.getFileName())
+                                        .a("' (size: ")
+                                        .a(announcement.getSize())
+                                        .a(" bytes)")
+                                );
+                                
+                                final Ansi prompt = Ansi.ansi()
+                                    .cursor(3, 0)
+                                    .eraseScreen(Ansi.Erase.FORWARD)
+                                    .a("Accept this connection? [y/n] ");
+                                
+                                while (true) {
+                                    immediateFlush(prompt);
+                                    final String input = sc.nextLine();
+                                    
+                                    if ("y".equalsIgnoreCase(input))
+                                        return true;
+                                    else if ("n".equalsIgnoreCase(input))
+                                        return false;
+                                }
+                            },
+                            (announcement, written) -> {
+                                final float progress  =
+                                    (float)written / announcement.getSize();
+                                
+                                immediateFlush(
+                                    Ansi.ansi()
+                                        .cursor(3, 0)
+                                        .eraseScreen(Ansi.Erase.FORWARD)
+                                        .format(
+                                            "Transfer: [%20s] (%.02f%%)",
+                                            "=".repeat(
+                                                Math.round(progress * 20)
+                                            ),
+                                            progress
+                                        )
+                                );
+                            } 
+                        );
+                    } catch (
+                        ServerErrorException |
+                        IOException |
+                        ProtocolFormatException ex
+                    ) {
+                        lastError = formatException(ex);
+                    }
+                    
+                    break;
+                }
+                case SEND_FILE: {
+                    try {
+                        immediateFlush(Ansi.ansi().eraseScreen().cursor(0, 0));
+                        
+                        System.out.print("Transfer code: ");
+                        final String transferCode = sc.nextLine();
+                        
+                        System.out.print("Path to file: ");
+                        client.sendFile(transferCode, sc.nextLine());
+                    } catch (
+                        ServerErrorException |
+                        IOException |
+                        ProtocolFormatException ex
+                    ) {
+                        lastError = formatException(ex);
+                    }
+                    
+                    break;
                 }
                 default:
                     break;

@@ -10,14 +10,14 @@ import java.util.concurrent.Executors;
 public class ServerListenerThread extends Thread {
     private final ExecutorService handlers;
     private final int port;
-    private final AuthenticationManager authManager;
+    private final SessionManager authManager;
     private final MessageManager messageManager;
     private final SecretManager secretManager;
     
     public ServerListenerThread(
         int port,
         SecretManager secretManager,
-        AuthenticationManager authManager,
+        SessionManager authManager,
         MessageManager messageManager
     ) throws IOException {
         this.handlers = Executors.newCachedThreadPool();

@@ -17,22 +17,8 @@ import java.util.regex.Pattern;
 
 public class MessageManager {
     private Connection dbConn;
-    private final static int CODE_LENGTH = 8;
-    private final static char[] CODE_SET =
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        .toCharArray();
     private final static String SQL_ARRAY_SEPARATOR = ",";
     private final static int DEFAULT_RETRIEVE_LIMIT = 15;
-    
-    private static String generateCode() {
-        SecureRandom rng = new SecureRandom();
-        StringBuilder codeBuilder = new StringBuilder(CODE_LENGTH);
-        
-        for (int i = 0; i < CODE_LENGTH; ++i)
-            codeBuilder.append(CODE_SET[rng.nextInt(CODE_SET.length)]);
-        
-        return codeBuilder.toString();
-    }
     
     private static <T> String listToSQLList(List<T> list) {
         return 
@@ -119,7 +105,7 @@ public class MessageManager {
             stmt.setString(4, listToSQLList(List.of()));
 
             while (true) {
-                stmt.setString(1, (code = generateCode()));
+                stmt.setString(1, (code = SessionManager.generateCode()));
                 
                 try {
                     stmt.executeUpdate();
