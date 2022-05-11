@@ -82,7 +82,7 @@ public class MessageManager {
                     "code TEXT UNIQUE NOT NULL," +
                     "name TEXT NOT NULL," +
                     "owner_id INTEGER NOT NULL," +
-                    "member_ids STRING NOT NULL" +
+                    "member_ids TEXT NOT NULL" +
                 ")"
             );
         }
@@ -162,7 +162,7 @@ public class MessageManager {
             while (result.next())
                 latestMessages.add(
                     new InternalMessage(
-                        result.getString("message"),
+                        Base64.getDecoder().decode(result.getString("message")),
                         result.getInt("author_id"),
                         result.getLong("timestamp")
                     )
@@ -218,14 +218,9 @@ public class MessageManager {
     public InternalMessage sendMessage(
         int senderId,
         int conversationId,
-        String content
-    ) throws SQLException, GenericMessageException {
+        byte[] content
+    ) throws SQLException {
         final long timestamp = System.currentTimeMillis();
-        
-        if (!Pattern.compile("[ -~]{1,280}").matcher(content).matches())
-            throw new GenericMessageException(
-                "Invalid message"
-            );
         
         try (PreparedStatement stmt = this.dbConn.prepareStatement(
             "INSERT INTO messages(" +
@@ -235,7 +230,7 @@ public class MessageManager {
             stmt.setLong(1, timestamp);
             stmt.setInt(2, conversationId);
             stmt.setInt(3, senderId);
-            stmt.setString(4, content);
+            stmt.setString(4, Base64.getEncoder().encodeToString(content));
 
             stmt.execute();
         }

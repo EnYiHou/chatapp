@@ -7,6 +7,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import protocol.BooleanSerializer;
+import protocol.BytesSerializer;
 import protocol.Conversation;
 import protocol.ConversationSerializer;
 import protocol.CookieSerializer;
@@ -216,7 +217,7 @@ public class ConnectionHandler implements Runnable {
                         InternalMessage mess = this.messageManager.sendMessage(
                             this.secretManager.getUserId(sess.getUsername()),
                             sess.getConversation(),
-                            new StringSerializer().deserialize(
+                            new BytesSerializer().deserialize(
                                 req.getBody()
                             ).getValue()
                         );

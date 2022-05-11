@@ -1,14 +1,16 @@
 package client;
 
-import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -16,6 +18,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import protocol.BooleanSerializer;
+import protocol.BytesSerializer;
 import protocol.Conversation;
 import protocol.ConversationSerializer;
 import protocol.ERequestType;
@@ -44,12 +47,13 @@ public class Client {
     private final static int DEFAULT_MAX_MESSAGES = 15;
     private final static int TRANSFER_BLOCK_SIZE = 2048;
     private AtomicBoolean newMessages;
-
-    Client(String host, int port) {
+    private String currentConversationPassword;
+    
+    Client(String host, int port) throws NoSuchAlgorithmException {
         this(host, port, DEFAULT_MAX_MESSAGES);
     }
     
-    Client(String host, int port, int maxMessages) {
+    Client(String host, int port, int maxMessages) throws NoSuchAlgorithmException {
         this.host = host;
         this.port = port;
         this.maxMessages = maxMessages;
@@ -59,6 +63,7 @@ public class Client {
             () -> this.newMessages.set(true)
         );
         this.newMessages = new AtomicBoolean(false);
+        this.currentConversationPassword = "";
     }
     
     public int getMaxMessages() {
@@ -174,9 +179,11 @@ public class Client {
         ).getValue();
     }
     
-    public void joinConversation(String code)
+    public void joinConversation(String code, String password)
         throws ProtocolFormatException, IOException, ServerErrorException {
         this.messages.clear();
+        
+        this.currentConversationPassword = password;
         
         this.request(
             new Request(
@@ -200,7 +207,7 @@ public class Client {
         );
     }
     
-    public Message[] getMessagesSnapshot() {
+    public Message[] getMessagesSnapshot() throws GeneralSecurityException, IOException {
         Message[] snapshot = new Message[this.messages.size()];
         
         this.messages.toArray(snapshot);
@@ -208,16 +215,45 @@ public class Client {
         
         Arrays.sort(snapshot, new MessageTimestampComparator());
         
+        if (!this.currentConversationPassword.isEmpty())
+            for (int i = 0; i < snapshot.length; ++i) {
+                ByteArrayInputStream reader = new ByteArrayInputStream(
+                    snapshot[i].getMessage()
+                );
+                
+                snapshot[i] = new Message(
+                    new Cryptor(
+                        this.currentConversationPassword,
+                        reader.readNBytes(Cryptor.SALT_LENGTH)
+                    ).decrypt(reader.readAllBytes()),
+                    snapshot[i].getAuthor(),
+                    snapshot[i].getTimestamp()
+                );
+            }
+            
         return snapshot;
     }
 
     public void sendMessage(String input)
-        throws ProtocolFormatException, IOException, ServerErrorException {
+        throws ProtocolFormatException, IOException, ServerErrorException, GeneralSecurityException {
+        ByteArrayOutputStream builder = new ByteArrayOutputStream();
+        
+        if (this.currentConversationPassword.isEmpty()) {
+            builder.writeBytes(input.getBytes());
+        } else {
+            final Cryptor cryptor = new Cryptor(currentConversationPassword);
+            
+            builder.writeBytes(cryptor.getSalt());
+            builder.writeBytes(cryptor.encrypt(input.getBytes()));
+        }
+        
         this.request(
             new Request(
                 ERequestType.SEND_MSG,
                 this.runnable.getCookie(),
-                new StringSerializer().serialize(input)
+                new BytesSerializer().serialize(
+                    builder.toByteArray()
+                )
             ),
             EResponseType.EMPTY
         );

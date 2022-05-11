@@ -7,10 +7,9 @@ public class MessageSerializer implements Serializer<Message> {
     @Override
     public byte[] serialize(Message o) throws ProtocolFormatException {
         ByteArrayOutputStream builder = new ByteArrayOutputStream();
-        StringSerializer stringSerializer = new StringSerializer();
         
-        builder.writeBytes(stringSerializer.serialize(o.getAuthor()));
-        builder.writeBytes(stringSerializer.serialize(o.getMessage()));
+        builder.writeBytes(new StringSerializer().serialize(o.getAuthor()));
+        builder.writeBytes(new BytesSerializer().serialize(o.getMessage()));
         builder.writeBytes(new LongSerializer().serialize(o.getTimestamp()));
         
         return builder.toByteArray();
@@ -19,10 +18,11 @@ public class MessageSerializer implements Serializer<Message> {
     @Override
     public Deserialized<Message> deserialize(List<Byte> buf)
         throws ProtocolFormatException {
-        StringSerializer stringSerializer = new StringSerializer();
+        Deserialized<String> rawAuthor = new StringSerializer().deserialize(
+            buf
+        );
         
-        Deserialized<String> rawAuthor = stringSerializer.deserialize(buf);
-        Deserialized<String> rawMessage = stringSerializer.deserialize(
+        Deserialized<byte[]> rawMessage = new BytesSerializer().deserialize(
             buf.subList(rawAuthor.getSize(), buf.size())
         );
         

@@ -1,19 +1,20 @@
 package protocol;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 public class Message {
-    private final String message;
+    private final byte[] message;
     private final String author;
     private final long timestamp;
     
-    public Message(String message, String author, long timestamp) {
+    public Message(byte[] message, String author, long timestamp) {
         this.message = message;
         this.author = author;
         this.timestamp = timestamp;
     }
 
-    public String getMessage() {
+    public byte[] getMessage() {
         return message;
     }
 
@@ -51,6 +52,6 @@ public class Message {
         return
             this.timestamp == other.timestamp &&
             this.author.equals(other.author) &&
-            this.message.equals(other.message);
+            Arrays.equals(this.message, other.message);
     }
 }

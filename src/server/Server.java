@@ -9,7 +9,7 @@ import java.sql.SQLException;
 public class Server {
     private static final String DEFAULT_DB_PATH = "chatapp.db";
     public static final int PORT = 5200;
-    private final SessionManager authManager;
+    private final SessionManager sessManager;
     private final Connection dbConn;
     private ServerListenerThread listener;
     private final MessageManager messageManager;
@@ -27,7 +27,7 @@ public class Server {
             SQLException {
         this.dbConn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
         this.secretManager = new SecretManager(this.dbConn);
-        this.authManager = new SessionManager(this.secretManager);
+        this.sessManager = new SessionManager(this.secretManager);
         this.messageManager = new MessageManager(this.dbConn);
         this.listener = null;
     }
@@ -37,7 +37,7 @@ public class Server {
             throw new IOException("Server already listening");
         
         this.listener = new ServerListenerThread(
-            PORT, this.secretManager, this.authManager, this.messageManager
+            PORT, this.secretManager, this.sessManager, this.messageManager
         );
         
         this.listener.start();

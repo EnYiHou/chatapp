@@ -1,12 +1,15 @@
 package client;
 
 import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
 import java.util.function.Function;
+import javax.crypto.NoSuchPaddingException;
 import org.fusesource.jansi.Ansi;
 import org.fusesource.jansi.AnsiConsole;
 import protocol.Conversation;
@@ -24,7 +27,8 @@ public class ClientFrontend {
             );
         else if (
             IOException.class.isInstance(ex) ||
-            ProtocolFormatException.class.isInstance(ex)
+            ProtocolFormatException.class.isInstance(ex) ||
+            FileTransferException.class.isInstance(ex)
         )
             return String.format("error: %s", ex.getMessage());
         else
@@ -36,7 +40,7 @@ public class ClientFrontend {
         System.out.flush();
     }
     
-    private static Client connectClient() {
+    private static Client connectClient() throws NoSuchAlgorithmException, NoSuchPaddingException {
         String host;
         int port;
         Client client;
@@ -192,7 +196,7 @@ public class ClientFrontend {
                 try {
                     client.sendMessage(input);
                     immediateFlush(promptSupplier.apply(""));
-                } catch (ServerErrorException ex) {
+                } catch (ServerErrorException | GeneralSecurityException ex) {
                     immediateFlush(promptSupplier.apply(ex.getMessage()));
                 }
                 
@@ -202,7 +206,15 @@ public class ClientFrontend {
             if (shallReprint || client.newMessages()) {
                 shallReprint = false;
     
-                final Message[] messages = client.getMessagesSnapshot();
+                Message[] messages;
+                
+                try {
+                    messages = client.getMessagesSnapshot();
+                } catch (GeneralSecurityException ex) {
+                    messages = new Message[0];
+                    
+                    immediateFlush(promptSupplier.apply(ex.getMessage()));
+                }
                 
                 immediateFlush(
                     Ansi.ansi()
@@ -225,7 +237,7 @@ public class ClientFrontend {
                             new Date(message.getTimestamp())
                         ),
                         message.getAuthor(),
-                        message.getMessage()
+                        new String(message.getMessage())
                     );
                 
                 immediateFlush(
@@ -240,7 +252,7 @@ public class ClientFrontend {
         } while (true);
     }
     
-    public static void main(String[] args) throws FileTransferException {
+    public static void main(String[] args) throws NoSuchAlgorithmException, NoSuchPaddingException {
         sc = new Scanner(System.in);
 
         AnsiConsole.systemInstall();
@@ -277,7 +289,8 @@ public class ClientFrontend {
                 case CREATE_CONVO: {
                     try {
                         System.out.print("Conversation name: ");
-                        Conversation conv = client.createConversation(
+                        
+                        client.createConversation(
                             sc.nextLine()
                         );
                     } catch (
@@ -293,8 +306,13 @@ public class ClientFrontend {
                 case JOIN_CONVO: {
                     try {
                         System.out.print("Conversation code: ");
+                        final String conversationCode = sc.nextLine();
+                        System.out.print(
+                            "Conversation password (Empty for no encryption): "
+                        );
+                        
                         client.joinConversation(
-                            sc.nextLine()
+                            conversationCode, sc.nextLine()
                         );
                         
                         startChat(client);
@@ -425,6 +443,7 @@ public class ClientFrontend {
                         System.out.print("Path to file: ");
                         client.sendFile(transferCode, sc.nextLine());
                     } catch (
+                        FileTransferException |
                         ServerErrorException |
                         IOException |
                         ProtocolFormatException ex
