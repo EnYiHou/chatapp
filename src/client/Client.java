@@ -79,13 +79,13 @@ public class Client {
             sock.getOutputStream().write(serializedRequest);
             
             resp = new ResponseSerializer().deserialize(
-                    sock.getInputStream().readNBytes(
-                            new IntegerSerializer().deserialize(
-                                    sock.getInputStream().readNBytes(
-                                            IntegerSerializer.size()
-                                    )
-                            ).getValue()
-                    )
+                sock.getInputStream().readNBytes(
+                    new IntegerSerializer().deserialize(
+                        sock.getInputStream().readNBytes(
+                            IntegerSerializer.size()
+                        )
+                    ).getValue()
+                )
             ).getValue();
             
             if (resp.getType() != expectedResponseType) {
@@ -95,9 +95,9 @@ public class Client {
                     );
                 
                 throw new ServerErrorException(
-                        new StringSerializer().deserialize(
-                                resp.getBody()
-                        ).getValue()
+                    new StringSerializer().deserialize(
+                        resp.getBody()
+                    ).getValue()
                 );
             }
         }
@@ -351,8 +351,8 @@ public class Client {
         final long fileSize = new File(path).length();
         
         try (
-            Socket senderSock = new Socket(host, port);
-            FileInputStream fp = new FileInputStream(path)
+            FileInputStream fp = new FileInputStream(path);
+            Socket senderSock = new Socket(this.host, this.port)
         ) {
             String sanitizedFileName = Paths
                 .get(path)

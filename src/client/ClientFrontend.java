@@ -22,10 +22,11 @@ public class ClientFrontend {
             return String.format(
                 "error: server responded with: " + ex.getMessage()
             );
-        else if (IOException.class.isInstance(ex))
-            return "error: connection failed";
-        else if (ProtocolFormatException.class.isInstance(ex))
-            return String.format("error: " + ex.getMessage());
+        else if (
+            IOException.class.isInstance(ex) ||
+            ProtocolFormatException.class.isInstance(ex)
+        )
+            return String.format("error: %s", ex.getMessage());
         else
             return "error: Unknown error";
     }
