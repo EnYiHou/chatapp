@@ -291,11 +291,11 @@ public class ConnectionHandler implements Runnable {
                         
                         this.conn.getOutputStream().write(serializedCode);
                         
-                        while (!this.conn.isClosed())
+                        while (
+                            this.sessManager.getTransfer(transferCode) != null
+                        )
                             Thread.sleep(200);
-                        
-                        this.sessManager.stopTransfer(transferCode);
-                        
+                                                
                         response = new Response(
                             EResponseType.EMPTY,
                             new byte[0]
@@ -378,7 +378,9 @@ public class ConnectionHandler implements Runnable {
                             i += block.length;
                         }
                         
-                        targetConn.close();
+                        this.sessManager.stopTransfer(
+                            announcement.getTransferCode()
+                        );
                         
                         response = new Response(
                             EResponseType.EMPTY,
