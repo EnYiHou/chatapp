@@ -215,21 +215,20 @@ public class Client {
         
         Arrays.sort(snapshot, new MessageTimestampComparator());
         
-        if (!this.currentConversationPassword.isEmpty())
-            for (int i = 0; i < snapshot.length; ++i) {
-                ByteArrayInputStream reader = new ByteArrayInputStream(
-                    snapshot[i].getMessage()
-                );
-                
-                snapshot[i] = new Message(
-                    new Cryptor(
-                        this.currentConversationPassword,
-                        reader.readNBytes(Cryptor.SALT_LENGTH)
-                    ).decrypt(reader.readAllBytes()),
-                    snapshot[i].getAuthor(),
-                    snapshot[i].getTimestamp()
-                );
-            }
+        for (int i = 0; i < snapshot.length; ++i) {
+            ByteArrayInputStream reader = new ByteArrayInputStream(
+                snapshot[i].getMessage()
+            );
+
+            snapshot[i] = new Message(
+                new Cryptor(
+                    this.currentConversationPassword,
+                    reader.readNBytes(Cryptor.SALT_LENGTH)
+                ).decrypt(reader.readAllBytes()),
+                snapshot[i].getAuthor(),
+                snapshot[i].getTimestamp()
+            );
+        }
             
         return snapshot;
     }
@@ -238,14 +237,10 @@ public class Client {
         throws ProtocolFormatException, IOException, ServerErrorException, GeneralSecurityException {
         ByteArrayOutputStream builder = new ByteArrayOutputStream();
         
-        if (this.currentConversationPassword.isEmpty()) {
-            builder.writeBytes(input.getBytes());
-        } else {
-            final Cryptor cryptor = new Cryptor(currentConversationPassword);
-            
-            builder.writeBytes(cryptor.getSalt());
-            builder.writeBytes(cryptor.encrypt(input.getBytes()));
-        }
+        final Cryptor cryptor = new Cryptor(currentConversationPassword);
+
+        builder.writeBytes(cryptor.getSalt());
+        builder.writeBytes(cryptor.encrypt(input.getBytes()));
         
         this.request(
             new Request(

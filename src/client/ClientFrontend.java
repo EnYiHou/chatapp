@@ -308,7 +308,7 @@ public class ClientFrontend {
                         System.out.print("Conversation code: ");
                         final String conversationCode = sc.nextLine();
                         System.out.print(
-                            "Conversation password (Empty for no encryption): "
+                            "Conversation password: "
                         );
                         
                         client.joinConversation(
